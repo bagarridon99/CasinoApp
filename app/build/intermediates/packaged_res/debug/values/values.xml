@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="md_theme_light_background">#FFFBFE</color>
+    <color name="md_theme_light_primary">#006E1C</color>
+    <color name="md_theme_light_secondary">#004EAA</color>
+    <color name="md_theme_light_surface">#FFFBFE</color>
+    <color name="md_theme_light_tertiary">#8B4B00</color>
+    <string name="app_name">CasinoApp</string>
+    <style name="Theme.CasinoApp" parent="Theme.Material3.DayNight">
+        <item name="android:statusBarColor" ns1:targetApi="l">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+            <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

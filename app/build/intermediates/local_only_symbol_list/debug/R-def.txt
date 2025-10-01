@@ -1,0 +1,13 @@
+R_DEF: Internal format may change without notice
+local
+color ic_launcher_background
+color md_theme_light_background
+color md_theme_light_primary
+color md_theme_light_secondary
+color md_theme_light_surface
+color md_theme_light_tertiary
+drawable ic_launcher_foreground
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+style Theme.CasinoApp
