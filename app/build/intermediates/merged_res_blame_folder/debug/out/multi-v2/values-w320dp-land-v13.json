@@ -4,7 +4,7 @@
             "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-w320dp-land-v13\\values-w320dp-land-v13.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-w320dp-land-v13\\values-w320dp-land-v13.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",

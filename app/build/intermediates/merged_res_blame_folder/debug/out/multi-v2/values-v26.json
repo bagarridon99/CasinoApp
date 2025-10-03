@@ -4,7 +4,7 @@
             "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-v26/values-v26.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-v26\\values-v26.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-v26\\values-v26.xml",
                     "from": {
                         "startLines": "2,3,4,8,12,16",
                         "startColumns": "4,4,4,4,4,4",

@@ -4,24 +4,7 @@
             "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-af/values-af.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\0b4357c2a1873be10b7327f1dee2ac3c\\transformed\\ui-release\\res\\values-af\\values-af.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,201,288,385,486,572,648,739,829,915,979,1044,1122,1203,1274,1355,1425",
-                        "endColumns": "95,86,96,100,85,75,90,89,85,63,64,77,80,70,80,69,119",
-                        "endOffsets": "196,283,380,481,567,643,734,824,910,974,1039,1117,1198,1269,1350,1420,1540"
-                    },
-                    "to": {
-                        "startLines": "52,53,86,87,89,94,95,152,153,154,155,157,158,161,165,166,167",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "4895,4991,8671,8768,8942,9322,9398,13843,13933,14019,14083,14225,14303,14546,14903,14984,15054",
-                        "endColumns": "95,86,96,100,85,75,90,89,85,63,64,77,80,70,80,69,119",
-                        "endOffsets": "4986,5073,8763,8864,9023,9393,9484,13928,14014,14078,14143,14298,14379,14612,14979,15049,15169"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\9d6616f39938ca999badb79c7c23cf3f\\transformed\\material3-1.1.2\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\9d6616f39938ca999badb79c7c23cf3f\\transformed\\material3-1.1.2\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -38,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\ca8e10ff8805ca12450af7d0de46d87e\\transformed\\core-1.12.0\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\ca8e10ff8805ca12450af7d0de46d87e\\transformed\\core-1.12.0\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -55,7 +38,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\0b4357c2a1873be10b7327f1dee2ac3c\\transformed\\ui-release\\res\\values-af\\values-af.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,201,288,385,486,572,648,739,829,915,979,1044,1122,1203,1274,1355,1425",
+                        "endColumns": "95,86,96,100,85,75,90,89,85,63,64,77,80,70,80,69,119",
+                        "endOffsets": "196,283,380,481,567,643,734,824,910,974,1039,1117,1198,1269,1350,1420,1540"
+                    },
+                    "to": {
+                        "startLines": "52,53,86,87,89,94,95,152,153,154,155,157,158,161,165,166,167",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "4895,4991,8671,8768,8942,9322,9398,13843,13933,14019,14083,14225,14303,14546,14903,14984,15054",
+                        "endColumns": "95,86,96,100,85,75,90,89,85,63,64,77,80,70,80,69,119",
+                        "endOffsets": "4986,5073,8763,8864,9023,9393,9484,13928,14014,14078,14143,14298,14379,14612,14979,15049,15169"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -74,7 +74,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",

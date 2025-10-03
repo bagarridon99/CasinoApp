@@ -4,7 +4,7 @@
             "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-ru/values-ru.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\9d6616f39938ca999badb79c7c23cf3f\\transformed\\material3-1.1.2\\res\\values-ru\\values-ru.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\9d6616f39938ca999badb79c7c23cf3f\\transformed\\material3-1.1.2\\res\\values-ru\\values-ru.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,24 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\0b4357c2a1873be10b7327f1dee2ac3c\\transformed\\ui-release\\res\\values-ru\\values-ru.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,198,281,379,481,573,655,745,833,915,986,1056,1140,1227,1299,1383,1453",
-                        "endColumns": "92,82,97,101,91,81,89,87,81,70,69,83,86,71,83,69,122",
-                        "endOffsets": "193,276,374,476,568,650,740,828,910,981,1051,1135,1222,1294,1378,1448,1571"
-                    },
-                    "to": {
-                        "startLines": "54,55,88,89,91,96,97,154,155,156,157,159,160,163,167,168,169",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "5084,5177,8843,8941,9124,9536,9618,14171,14259,14341,14412,14562,14646,14905,15265,15349,15419",
-                        "endColumns": "92,82,97,101,91,81,89,87,81,70,69,83,86,71,83,69,122",
-                        "endOffsets": "5172,5255,8936,9038,9211,9613,9703,14254,14336,14407,14477,14641,14728,14972,15344,15414,15537"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-ru\\values-ru.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\8086a346deb55314d830582d8c1bcb30\\transformed\\appcompat-1.6.1\\res\\values-ru\\values-ru.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -55,7 +38,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-ru\\values-ru.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\0b4357c2a1873be10b7327f1dee2ac3c\\transformed\\ui-release\\res\\values-ru\\values-ru.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,198,281,379,481,573,655,745,833,915,986,1056,1140,1227,1299,1383,1453",
+                        "endColumns": "92,82,97,101,91,81,89,87,81,70,69,83,86,71,83,69,122",
+                        "endOffsets": "193,276,374,476,568,650,740,828,910,981,1051,1135,1222,1294,1378,1448,1571"
+                    },
+                    "to": {
+                        "startLines": "54,55,88,89,91,96,97,154,155,156,157,159,160,163,167,168,169",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "5084,5177,8843,8941,9124,9536,9618,14171,14259,14341,14412,14562,14646,14905,15265,15349,15419",
+                        "endColumns": "92,82,97,101,91,81,89,87,81,70,69,83,86,71,83,69,122",
+                        "endOffsets": "5172,5255,8936,9038,9211,9613,9703,14254,14336,14407,14477,14641,14728,14972,15344,15414,15537"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\19f582719df66b43473f1f15d8738884\\transformed\\material-1.10.0\\res\\values-ru\\values-ru.xml",
                     "from": {
                         "startLines": "2,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -74,7 +74,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Cetecom\\.gradle\\caches\\transforms-3\\ca8e10ff8805ca12450af7d0de46d87e\\transformed\\core-1.12.0\\res\\values-ru\\values-ru.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\transforms-3\\ca8e10ff8805ca12450af7d0de46d87e\\transformed\\core-1.12.0\\res\\values-ru\\values-ru.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
