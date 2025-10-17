@@ -24,6 +24,8 @@ private enum class HomeTab(val label: String, val icon: androidx.compose.ui.grap
 fun HomeScreen(
     viewModel: CasinoViewModel,
     snackbarHostState: SnackbarHostState,
+    // <<< NUEVO: callback para cerrar sesión (lo inyecta MainActivity con authVm.logout())
+    onLogout: () -> Unit = {}
 ) {
     val uiState by remember { derivedStateOf { viewModel.uiState } }
     val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
@@ -32,7 +34,11 @@ fun HomeScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Hola, ${uiState.playerName}") },
-                actions = { IconButton(onClick = { viewModel.logout() }) { Icon(Icons.Filled.Logout, "Cerrar sesión") } }
+                actions = {
+                    IconButton(onClick = { onLogout() }) {   // <<< usar callback
+                        Icon(Icons.Filled.Logout, contentDescription = "Cerrar sesión")
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },

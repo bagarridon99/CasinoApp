@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-small-v4/values-small-v4.xml",
+            "outputFile": "com.example.casinoapp-mergeDebugResources-64:/values-small-v4/values-small-v4.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\marti\\.gradle\\caches\\8.13\\transforms\\908da84ce6d188a5ecc81691f0d6e1a0\\transformed\\material-1.10.0\\res\\values-small-v4\\values-small-v4.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\8.13\\transforms\\60ed4891a182b4a95c18502ada7fa5f4\\transformed\\material-1.10.0\\res\\values-small-v4\\values-small-v4.xml",
                     "from": {
                         "startLines": "2,3,4,5",
                         "startColumns": "4,4,4,4",

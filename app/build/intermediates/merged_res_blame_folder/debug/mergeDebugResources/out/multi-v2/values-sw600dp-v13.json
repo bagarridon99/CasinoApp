@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-sw600dp-v13/values-sw600dp-v13.xml",
+            "outputFile": "com.example.casinoapp-mergeDebugResources-64:/values-sw600dp-v13/values-sw600dp-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\marti\\.gradle\\caches\\8.13\\transforms\\1212eafbb69bdc2a0ccf1730552b12ff\\transformed\\appcompat-1.6.1\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\8.13\\transforms\\4a60d3860da45110f71c9f4c9bb4638c\\transformed\\appcompat-1.6.1\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -14,7 +14,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\marti\\.gradle\\caches\\8.13\\transforms\\908da84ce6d188a5ecc81691f0d6e1a0\\transformed\\material-1.10.0\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\8.13\\transforms\\60ed4891a182b4a95c18502ada7fa5f4\\transformed\\material-1.10.0\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,10,11,12,13,14",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4",

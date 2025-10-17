@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.casinoapp-mergeDebugResources-57:/values-h720dp-v13/values-h720dp-v13.xml",
+            "outputFile": "com.example.casinoapp-mergeDebugResources-64:/values-h720dp-v13/values-h720dp-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\marti\\.gradle\\caches\\8.13\\transforms\\1212eafbb69bdc2a0ccf1730552b12ff\\transformed\\appcompat-1.6.1\\res\\values-h720dp-v13\\values-h720dp-v13.xml",
+                    "source": "C:\\Users\\basti\\.gradle\\caches\\8.13\\transforms\\4a60d3860da45110f71c9f4c9bb4638c\\transformed\\appcompat-1.6.1\\res\\values-h720dp-v13\\values-h720dp-v13.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
