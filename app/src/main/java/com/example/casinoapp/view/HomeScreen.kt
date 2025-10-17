@@ -2,11 +2,7 @@ package com.example.casinoapp.view
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Casino
-import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -14,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.casinoapp.model.CasinoUiState
-import com.example.casinoapp.model.RouletteColor
+import com.example.casinoapp.viewmodel.CasinoViewModel
 
 private enum class HomeTab(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Dashboard("Inicio", Icons.Filled.Home),
@@ -26,22 +22,17 @@ private enum class HomeTab(val label: String, val icon: androidx.compose.ui.grap
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    uiState: CasinoUiState,
+    viewModel: CasinoViewModel,
     snackbarHostState: SnackbarHostState,
-    onLogout: () -> Unit,
-    onPlayRoulette: (Int, RouletteColor) -> Unit,
-    onPlayBlackjack: (Int) -> Unit,
-    onPlaySlots: (Int) -> Unit,
-    onDeposit: (Int) -> Unit,
-    onWithdraw: (Int) -> Unit
 ) {
+    val uiState by remember { derivedStateOf { viewModel.uiState } }
     val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Hola, ${uiState.playerName}") },
-                actions = { IconButton(onClick = onLogout) { Icon(Icons.Filled.Logout, contentDescription = "Cerrar sesión") } }
+                actions = { IconButton(onClick = { viewModel.logout() }) { Icon(Icons.Filled.Logout, "Cerrar sesión") } }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -67,12 +58,24 @@ fun HomeScreen(
             when (selectedTab.value) {
                 HomeTab.Dashboard -> DashboardSection(
                     uiState = uiState,
-                    onDeposit = onDeposit,
-                    onWithdraw = onWithdraw
+                    onDeposit = { viewModel.deposit(it) },
+                    onWithdraw = { viewModel.withdraw(it) }
                 )
-                HomeTab.Roulette -> RouletteScreen(uiState.balance, onPlayRoulette)
-                HomeTab.Blackjack -> BlackjackScreen(uiState.balance, onPlayBlackjack)
-                HomeTab.Slots -> SlotsScreen(uiState.balance, onPlaySlots)
+                HomeTab.Roulette -> RouletteScreen(
+                    uiState = uiState,
+                    onPlay = { betAmount, bet -> viewModel.playRoulette(betAmount, bet) }
+                )
+                HomeTab.Blackjack -> BlackjackScreen(
+                    uiState = uiState.blackjackState,
+                    balance = uiState.balance,
+                    onStartGame = { viewModel.startBlackjack(it) },
+                    onHit = { viewModel.blackjackHit() },
+                    onStand = { viewModel.blackjackStand() }
+                )
+                HomeTab.Slots -> SlotsScreen(
+                    uiState = uiState,
+                    onPlay = { viewModel.playSlots(it) }
+                )
             }
         }
     }

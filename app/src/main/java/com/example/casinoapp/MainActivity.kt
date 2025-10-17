@@ -6,10 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.casinoapp.model.CasinoUiState
-import com.example.casinoapp.model.RouletteColor
 import com.example.casinoapp.ui.theme.CasinoAppTheme
-import com.example.casinoapp.view.*
+import com.example.casinoapp.view.HomeScreen
+import com.example.casinoapp.view.LoginScreen
+import com.example.casinoapp.view.SignUpScreen
 import com.example.casinoapp.viewmodel.CasinoViewModel
 
 class MainActivity : ComponentActivity() {
@@ -25,7 +25,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun CasinoApp(viewModel: CasinoViewModel = viewModel()) {
-    val uiState: CasinoUiState = viewModel.uiState
+    // Usamos 'by' para que la vista se actualice automáticamente cuando el estado cambie
+    val uiState by remember { derivedStateOf { viewModel.uiState } }
     val snackbarHostState = remember { SnackbarHostState() }
     var showSignUp by remember { mutableStateOf(false) }
 
@@ -52,14 +53,8 @@ fun CasinoApp(viewModel: CasinoViewModel = viewModel()) {
         }
     } else {
         HomeScreen(
-            uiState = uiState,
-            snackbarHostState = snackbarHostState,
-            onLogout = { viewModel.logout() },
-            onPlayRoulette = { bet, color: RouletteColor -> viewModel.playRoulette(bet, color) },
-            onPlayBlackjack = { bet -> viewModel.playBlackjack(bet) },
-            onPlaySlots = { bet -> viewModel.playSlots(bet) },
-            onDeposit = { viewModel.deposit(it) },
-            onWithdraw = { viewModel.withdraw(it) }
+            viewModel = viewModel,
+            snackbarHostState = snackbarHostState
         )
     }
 }
