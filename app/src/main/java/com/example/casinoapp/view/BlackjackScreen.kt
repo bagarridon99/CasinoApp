@@ -1,8 +1,20 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.casinoapp.view
 
+import android.media.MediaPlayer
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -10,12 +22,29 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.casinoapp.R
 import com.example.casinoapp.model.BlackjackGameState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.random.Random
+import androidx.compose.ui.res.painterResource
+
+
+/* =======================================================================
+ *  BLACKJACK
+ * ======================================================================= */
 
 @Composable
 fun BlackjackScreen(
@@ -23,137 +52,348 @@ fun BlackjackScreen(
     balance: Int,
     onStartGame: (Int) -> Unit,
     onHit: () -> Unit,
-    onStand: () -> Unit
+    onStand: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+
+    // --- SFX (no fallan si no hay /res/raw) ---
+    val sfx = remember {
+        SoundFx(
+            shuffle = tryCreatePlayer(context, "shuffle"),
+            flip = tryCreatePlayer(context, "flip"),
+            win = tryCreatePlayer(context, "win"),
+            lose = tryCreatePlayer(context, "lose")
+        )
+    }
+    DisposableEffect(Unit) { onDispose { sfx.release() } }
+
     var bet by rememberSaveable { mutableStateOf("100") }
+    val betInt = bet.toIntOrNull() ?: 0
+    val canStart = betInt in 1..balance
     val isGameInProgress = uiState.isPlayerTurn
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Saldo: $balance")
+    // Resultado visual
+    var outcomeText by remember { mutableStateOf<String?>(null) }
+    var outcomePositive by remember { mutableStateOf(false) }
+    var showConfetti by remember { mutableStateOf(false) }
 
-        // Controles de apuesta y botón de Jugar/Repartir
-        AnimatedVisibility(!isGameInProgress) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = bet,
-                    onValueChange = { bet = it.filter(Char::isDigit) },
-                    label = { Text("Apuesta") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = { onStartGame(bet.toIntOrNull() ?: 0) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Repartir Cartas")
+    // Reacciona a cambios de estado/mensajes del juego
+    LaunchedEffect(isGameInProgress, uiState.gameMessage) {
+        if (!isGameInProgress && uiState.playerHand.isNotEmpty()) {
+            sfx.flip.startSafely()
+        }
+        uiState.gameMessage?.let { msg ->
+            outcomeText = msg
+            when {
+                msg.contains("Ganaste", true) || msg.contains("Blackjack", true) -> {
+                    outcomePositive = true
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    sfx.win.startSafely()
+                    showConfetti = true
+                    launch {
+                        delay(3800)
+                        showConfetti = false
+                    }
+                }
+                msg.contains("Perdiste", true) || msg.contains("pierdes", true) -> {
+                    outcomePositive = false
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    sfx.lose.startSafely()
+                }
+                msg.contains("Empate", true) || msg.contains("Push", true) -> {
+                    outcomePositive = false
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             }
+            launch {
+                delay(4200)
+                outcomeText = null
+            }
         }
+    }
 
-        Spacer(Modifier.height(16.dp))
+    Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            /* ------------------------- HEADER ------------------------- */
+            item { GameHeader(imageRes = R.drawable.blackjack_background, balance = balance) }
 
-        // Mesa de juego
-        if (uiState.playerHand.isNotEmpty()) {
-            // Mano del crupier
-            val dealerTotal = if(isGameInProgress) cardValueToString(uiState.dealerHand.first()) + " + ?" else handTotal(uiState.dealerHand).toString()
-            Text("Mano del Crupier (Total: $dealerTotal)", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(70.dp)) {
-                // Muestra la primera carta del crupier. La segunda está oculta si es el turno del jugador.
-                CardView(cardValueToString(uiState.dealerHand.first()))
-                if (isGameInProgress) {
-                    HiddenCardView()
-                } else {
-                    uiState.dealerHand.drop(1).forEach { cardValue ->
-                        CardView(cardValueToString(cardValue))
+            /* ------------------ PANEL DE APUESTA ---------------------- */
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                    )
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AnimatedVisibility(!isGameInProgress) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Coloca tu apuesta", style = MaterialTheme.typography.titleMedium)
+                                OutlinedTextField(
+                                    value = bet,
+                                    onValueChange = { bet = it.filter(Char::isDigit) },
+                                    label = { Text("Monto") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    supportingText = {
+                                        if (!canStart) Text(
+                                            "Debe ser mayor a 0 y no superar tu saldo.",
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(50, 100, 200, 500).forEach { preset ->
+                                        AssistChip(onClick = { bet = preset.toString() }, label = { Text("\$${preset}") })
+                                    }
+                                    AssistChip(onClick = { bet = balance.toString() }, label = { Text("MAX") })
+                                }
+                                Button(
+                                    onClick = { sfx.shuffle.startSafely(); onStartGame(betInt) },
+                                    enabled = canStart,
+                                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                                ) { Text("Repartir cartas") }
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            /* ------------------------- MESA --------------------------- */
+            if (uiState.playerHand.isNotEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            // --- Crupier ---
+                            val dealerShownTotal =
+                                if (isGameInProgress) "${cardValueToString(uiState.dealerHand.first())} + ?"
+                                else handTotal(uiState.dealerHand).toString()
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Mano del crupier", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                TotalBadge(
+                                    total = if (isGameInProgress) null else handTotal(uiState.dealerHand),
+                                    isBlackjack = if (isGameInProgress) false else isBlackjack(uiState.dealerHand),
+                                    isBust = if (isGameInProgress) false else isBust(uiState.dealerHand),
+                                    hintText = dealerShownTotal
+                                )
+                            }
+                            CardsRow(dealer = true, hiddenSecond = isGameInProgress, cards = uiState.dealerHand)
 
-            // Mano del jugador
-            val playerTotal = handTotal(uiState.playerHand).toString()
-            Text("Tu Mano (Total: $playerTotal)", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.height(70.dp)) {
-                uiState.playerHand.forEach { cardValue ->
-                    CardView(cardValueToString(cardValue))
+                            // --- Jugador ---
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Tu mano", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                TotalBadge(
+                                    total = handTotal(uiState.playerHand),
+                                    isBlackjack = isBlackjack(uiState.playerHand),
+                                    isBust = isBust(uiState.playerHand),
+                                )
+                            }
+                            CardsRow(cards = uiState.playerHand)
+
+                            // --- Mensaje y acciones ---
+                            Spacer(Modifier.height(8.dp))
+                            uiState.gameMessage?.let {
+                                Text(it, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            }
+
+                            AnimatedVisibility(isGameInProgress) {
+                                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Button(
+                                        onClick = { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); sfx.flip.startSafely(); onHit() },
+                                        modifier = Modifier.weight(1f).height(50.dp)
+                                    ) { Text("Pedir") }
+                                    Button(
+                                        onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onStand() },
+                                        modifier = Modifier.weight(1f).height(50.dp)
+                                    ) { Text("Plantarse") }
+                                }
+                            }
+
+                            AnimatedVisibility(!isGameInProgress) {
+                                Button(
+                                    onClick = { sfx.shuffle.startSafely(); onStartGame((bet.toIntOrNull() ?: 0).coerceAtLeast(1)) },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                                ) { Text("Nueva mano") }
+                            }
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // Mensaje del juego
-            uiState.gameMessage?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            // Banda de resultado
+            item {
+                AnimatedVisibility(visible = outcomeText != null) {
+                    OutcomeBanner(text = outcomeText ?: "", positive = outcomePositive)
+                }
             }
         }
 
-        // Botones de acción del jugador
-        AnimatedVisibility(isGameInProgress) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(onClick = onHit, modifier = Modifier.weight(1f)) {
-                    Text("Pedir Carta")
-                }
-                Button(onClick = onStand, modifier = Modifier.weight(1f)) {
-                    Text("Plantarse")
-                }
+        // Confetti encima
+        ConfettiOverlay(visible = showConfetti)
+    }
+}
+
+/* =======================================================================
+ *  SUB-COMPONENTES
+ * ======================================================================= */
+
+@Composable
+private fun GameHeader(imageRes: Int, balance: Int) {
+    Card(
+        Modifier.fillMaxWidth().height(160.dp),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Box {
+            Image(painter = painterResource(imageRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.35f)))
+            Text("Saldo: ${formatCLP(balance)}", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun CardsRow(cards: List<Int>, dealer: Boolean = false, hiddenSecond: Boolean = false) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(74.dp)) {
+        if (cards.isEmpty()) return
+        CardView(cardValueToString(cards.first()))
+        if (hiddenSecond && cards.size >= 2) HiddenCardView() else cards.drop(1).forEach { CardView(cardValueToString(it)) }
+    }
+}
+
+@Composable private fun HiddenCardView() {
+    Card(Modifier.size(52.dp, 74.dp), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)) {}
+}
+
+@Composable private fun CardView(value: String) {
+    Card(Modifier.size(52.dp, 74.dp), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.3f))) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun TotalBadge(total: Int?, isBlackjack: Boolean, isBust: Boolean, hintText: String? = null) {
+    val (bg, fg, label) = when {
+        isBlackjack -> Triple(Color(0xFF1B5E20), Color.White, "Blackjack")
+        isBust -> Triple(Color(0xFFB71C1C), Color.White, "Bust")
+        else -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, null)
+    }
+    Surface(color = bg, contentColor = fg, shape = RoundedCornerShape(999.dp)) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (label != null) Text(label, fontWeight = FontWeight.SemiBold)
+            if (total != null) {
+                if (label != null) Spacer(Modifier.width(8.dp))
+                Text("Total: $total")
+            } else if (hintText != null) {
+                Text(hintText)
             }
         }
     }
 }
 
 @Composable
-private fun HiddenCardView() {
-    Card(
-        modifier = Modifier.size(width = 50.dp, height = 70.dp),
-        shape = RoundedCornerShape(4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
-    ) {
-        Box(modifier = Modifier.fillMaxSize())
+private fun OutcomeBanner(text: String, positive: Boolean) {
+    val bg = if (positive) Color(0xFF1B5E20) else Color(0xFFB71C1C)
+    Surface(color = bg, contentColor = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
+        Text(text = text, modifier = Modifier.padding(14.dp), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
     }
 }
 
+/* ----------------------------- CONFETTI -------------------------------- */
+
 @Composable
-private fun CardView(value: String) {
-    Card(
-        modifier = Modifier.size(width = 50.dp, height = 70.dp),
-        shape = RoundedCornerShape(4.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+private fun ConfettiOverlay(visible: Boolean) {
+    if (!visible) return
+    val t = rememberInfiniteTransition(label = "confetti")
+    val pieces = remember { List(30) { ConfettiPiece.random() } }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        pieces.forEachIndexed { i, p ->
+            val fall by t.animateFloat(
+                initialValue = -100f, targetValue = 1400f,
+                animationSpec = infiniteRepeatable(tween(p.duration, i * 80, FastOutSlowInEasing), RepeatMode.Restart),
+                label = "fall$i"
+            )
+            val rot by t.animateFloat(
+                initialValue = 0f, targetValue = 360f,
+                animationSpec = infiniteRepeatable(tween(p.duration, easing = FastOutSlowInEasing), RepeatMode.Restart),
+                label = "rot$i"
+            )
+            Box(
+                Modifier
+                    .offset(x = p.startX.dp, y = fall.dp)
+                    .size(p.size.dp)
+                    .rotate(rot)
+                    .alpha(0.9f)
+                    .background(p.color, shape = RoundedCornerShape(3.dp))
             )
         }
     }
 }
 
-private fun cardValueToString(value: Int): String {
-    return when (value) {
-        11 -> "A"
-        10 -> "K"
-        else -> value.toString()
+private data class ConfettiPiece(val startX: Int, val size: Int, val color: Color, val duration: Int) {
+    companion object {
+        fun random(): ConfettiPiece {
+            val colors = listOf(
+                Color(0xFFF44336), Color(0xFF9C27B0), Color(0xFF2196F3),
+                Color(0xFF4CAF50), Color(0xFFFFC107), Color(0xFFFF9800)
+            )
+            return ConfettiPiece(
+                startX = Random.nextInt(-40, 360),
+                size = Random.nextInt(6, 12),
+                color = colors.random(),
+                duration = Random.nextInt(1800, 2800)
+            )
+        }
     }
 }
+
+/* ------------------------------ HELPERS -------------------------------- */
+
+private fun isBlackjack(cards: List<Int>) = cards.size == 2 && handTotal(cards) == 21
+private fun isBust(cards: List<Int>) = handTotal(cards) > 21
+
+private fun cardValueToString(value: Int) = when (value) { 11 -> "A"; 10 -> "K"; else -> value.toString() }
 
 private fun handTotal(cards: List<Int>): Int {
     var total = cards.sum()
     var aces = cards.count { it == 11 }
-    while (total > 21 && aces > 0) {
-        total -= 10
-        aces--
-    }
+    while (total > 21 && aces > 0) { total -= 10; aces-- }
     return total
+}
+
+private fun formatCLP(value: Int): String {
+    val nf = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("es", "CL"))
+    return nf.format(value)
+}
+
+/* ------------------------------ SFX UTILS ------------------------------- */
+
+private data class SoundFx(
+    val shuffle: MediaPlayer?, val flip: MediaPlayer?, val win: MediaPlayer?, val lose: MediaPlayer?
+) {
+    fun release() { listOf(shuffle, flip, win, lose).forEach { it?.release() } }
+}
+
+private fun tryCreatePlayer(context: android.content.Context, rawName: String): MediaPlayer? {
+    return try {
+        val id = context.resources.getIdentifier(rawName, "raw", context.packageName)
+        if (id == 0) null else MediaPlayer.create(context, id)
+    } catch (_: Throwable) { null }
+}
+
+private fun MediaPlayer?.startSafely() {
+    try { this?.let { it.seekTo(0); it.start() } } catch (_: Throwable) { }
 }

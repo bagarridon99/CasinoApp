@@ -6,9 +6,13 @@ color md_theme_light_primary
 color md_theme_light_secondary
 color md_theme_light_surface
 color md_theme_light_tertiary
+drawable blackjack_background
+drawable casino_background
 drawable ic_launcher_foreground
 drawable logo_casino
+drawable roulette_background
 drawable ruleta
+drawable slots_background
 mipmap ic_launcher
 mipmap ic_launcher_round
 string app_name
