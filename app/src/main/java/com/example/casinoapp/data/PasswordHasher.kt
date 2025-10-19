@@ -1,4 +1,4 @@
-package com.example.casinoapp.data.security
+package com.example.casinoapp.data
 
 import android.util.Base64
 import java.security.SecureRandom
@@ -8,33 +8,25 @@ import javax.crypto.spec.PBEKeySpec
 object PasswordHasher {
     private const val ITERATIONS = 120_000
     private const val KEY_LENGTH = 256 // bits
-    private const val ALGO = "PBKDF2WithHmacSHA256"
+    private const val SALT_LEN = 16
 
-    fun generateSalt(bytes: Int = 16): String {
-        val salt = ByteArray(bytes)
-        SecureRandom().nextBytes(salt)
-        return Base64.encodeToString(salt, Base64.NO_WRAP)
+    fun generateSalt(): String {
+        val bytes = ByteArray(SALT_LEN)
+        SecureRandom().nextBytes(bytes)
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
-    fun hash(password: CharArray, saltB64: String): String {
-        val salt = Base64.decode(saltB64, Base64.NO_WRAP)
-        val spec = PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH)
-        val skf = SecretKeyFactory.getInstance(ALGO)
-        val key = skf.generateSecret(spec).encoded
-        spec.clearPassword()
-        return Base64.encodeToString(key, Base64.NO_WRAP)
+    fun hash(password: String, salt: String = generateSalt()): Pair<String, String> {
+        val saltBytes = Base64.decode(salt, Base64.NO_WRAP)
+        val spec = PBEKeySpec(password.toCharArray(), saltBytes, ITERATIONS, KEY_LENGTH)
+        val skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val hash = skf.generateSecret(spec).encoded
+        val hashStr = Base64.encodeToString(hash, Base64.NO_WRAP)
+        return hashStr to salt
     }
 
-    fun verify(password: CharArray, saltB64: String, expectedHashB64: String): Boolean {
-        val h = hash(password, saltB64)
-        return constantTimeEquals(h, expectedHashB64)
-    }
-
-    private fun constantTimeEquals(a: String, b: String): Boolean {
-        val ba = a.toByteArray(); val bb = b.toByteArray()
-        var diff = ba.size xor bb.size
-        val len = minOf(ba.size, bb.size)
-        for (i in 0 until len) diff = diff or (ba[i].toInt() xor bb[i].toInt())
-        return diff == 0
+    fun verify(password: String, storedHash: String, storedSalt: String): Boolean {
+        val (calcHash, _) = hash(password, storedSalt)
+        return calcHash == storedHash
     }
 }

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.casinoapp-mergeDebugResources-64:/values-es-rUS/values-es-rUS.xml",
+            "outputFile": "com.example.casinoapp-mergeDebugResources-69:/values-es-rUS/values-es-rUS.xml",
             "map": [
                 {
                     "source": "C:\\Users\\basti\\.gradle\\caches\\8.13\\transforms\\60ed4891a182b4a95c18502ada7fa5f4\\transformed\\material-1.10.0\\res\\values-es-rUS\\values-es-rUS.xml",

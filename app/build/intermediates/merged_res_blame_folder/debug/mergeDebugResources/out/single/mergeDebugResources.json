@@ -1,18 +1,26 @@
 [
     {
-        "merged": "com.example.casinoapp-debug-66:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.example.casinoapp-main-68:/drawable/ic_launcher_foreground.xml"
+        "merged": "com.example.casinoapp-debug-71:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.example.casinoapp-main-73:/drawable/ic_launcher_foreground.xml"
     },
     {
-        "merged": "com.example.casinoapp-debug-66:/color_ic_launcher_background.xml.flat",
-        "source": "com.example.casinoapp-main-68:/color/ic_launcher_background.xml"
+        "merged": "com.example.casinoapp-debug-71:/drawable_logo_casino.png.flat",
+        "source": "com.example.casinoapp-main-73:/drawable/logo_casino.png"
     },
     {
-        "merged": "com.example.casinoapp-debug-66:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.example.casinoapp-main-68:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "com.example.casinoapp-debug-71:/color_ic_launcher_background.xml.flat",
+        "source": "com.example.casinoapp-main-73:/color/ic_launcher_background.xml"
     },
     {
-        "merged": "com.example.casinoapp-debug-66:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.example.casinoapp-main-68:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "com.example.casinoapp-debug-71:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.example.casinoapp-main-73:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.example.casinoapp-debug-71:/drawable_ruleta.jpg.flat",
+        "source": "com.example.casinoapp-main-73:/drawable/ruleta.jpg"
+    },
+    {
+        "merged": "com.example.casinoapp-debug-71:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.example.casinoapp-main-73:/mipmap-anydpi-v26/ic_launcher.xml"
     }
 ]

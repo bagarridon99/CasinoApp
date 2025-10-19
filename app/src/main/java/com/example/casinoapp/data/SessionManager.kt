@@ -1,5 +1,4 @@
-// FILE: app/src/main/java/com/example/casinoapp/data/session/SessionManager.kt
-package com.example.casinoapp.data.session
+package com.example.casinoapp.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

@@ -1,30 +1,58 @@
 package com.example.casinoapp.view
 
 import android.app.Application
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.casinoapp.R
 import com.example.casinoapp.viewmodel.AuthViewModel
+import kotlinx.coroutines.delay
+import androidx.compose.ui.ExperimentalComposeUiApi
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
+@OptIn(ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LoginScreen(
     snackbarHostState: SnackbarHostState,
-    onLogin: (String, String) -> Unit,       // se dispara tras login OK
+    onLogin: (String, String) -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
     // ViewModel con Factory clásica
@@ -41,74 +69,206 @@ fun LoginScreen(
     var pass by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Casino Royale", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(24.dp))
+    // IME/Focus
+    val focus = LocalFocusManager.current
+    val kb = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
 
-            OutlinedTextField(
-                value = user,
-                onValueChange = { user = it },
-                label = { Text("Usuario (email)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = pass,
-                onValueChange = { pass = it },
-                label = { Text("Contraseña") },
-                singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(icon, contentDescription = null)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+    // Validación simple
+    val emailValid by remember(user) {
+        mutableStateOf(android.util.Patterns.EMAIL_ADDRESS.matcher(user).matches())
+    }
+    val passValid by remember(pass) { mutableStateOf(pass.length >= 6) }
 
-            Spacer(Modifier.height(24.dp))
+    // Aparición escalonada
+    var showCard by remember { mutableStateOf(false) }
+    var showFields by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        showCard = true
+        delay(120)
+        showFields = true
+    }
 
-            Button(
-                onClick = { vm.login(user, pass) },
-                enabled = user.isNotBlank() && pass.isNotBlank() && !state.loading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (state.loading) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text("Ingresar")
-            }
-
-            TextButton(onClick = onNavigateToSignUp) {
-                Text("¿No tienes cuenta? Regístrate aquí")
-            }
-
-            TextButton(
-                onClick = {
-                    if (user.isNotBlank()) vm.requestReset(user)
-                    else {
-                        // si quieres, podrías mostrar un dialogo simple aquí también
-                    }
-                }
-            ) {
-                Text("¿Olvidaste tu contraseña?")
+    // Shake al error
+    val shake = remember { Animatable(0f) }
+    LaunchedEffect(state.msg) {
+        state.msg?.let { snackbarHostState.showSnackbar(it) }
+        if (state.msg != null) {
+            listOf(0f, -12f, 10f, -8f, 6f, -3f, 0f).forEach {
+                shake.animateTo(it, tween(60))
             }
         }
     }
 
-    // ==== ALERTDIALOG: muestra el mensaje del VM en una ventana flotante ====
+    Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
+            // === Fondo con Ken Burns + overlay oscuro ===
+            CasinoBackground()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // ===== Logo con “twinkles” detrás =====
+                Box(contentAlignment = Alignment.Center) {
+                    Twinkles(Modifier.size(300.dp), count = 10)
+                    ImageLogo(Modifier.padding(top = 4.dp))
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Tarjeta que entra con fade + slide
+                AnimatedVisibility(
+                    visible = showCard,
+                    enter = fadeIn() + slideInVertically { it / 12 },
+                    exit = fadeOut()
+                ) {
+                    // ===== Tarjeta estilo “glass” =====
+                    Surface(
+                        shape = RoundedCornerShape(28.dp),
+                        tonalElevation = 8.dp,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { translationX = shake.value } // efecto shake
+                    ) {
+                        Column(
+                            Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Paleta para TextFields
+                            val tfColors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f),
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.20f),
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Campos aparecen escalonados
+                            AnimatedVisibility(
+                                visible = showFields,
+                                enter = fadeIn(animationSpec = tween(250, delayMillis = 0)) +
+                                        slideInVertically { it / 10 }
+                            ) {
+                                OutlinedTextField(
+                                    value = user,
+                                    onValueChange = { user = it },
+                                    label = { Text("Usuario (email)") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Email,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    isError = user.isNotBlank() && !emailValid,
+                                    supportingText = {
+                                        if (user.isNotBlank() && !emailValid) Text("Ingresa un email válido")
+                                    },
+                                    colors = tfColors
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = showFields,
+                                enter = fadeIn(animationSpec = tween(250, delayMillis = 80)) +
+                                        slideInVertically { it / 10 }
+                            ) {
+                                OutlinedTextField(
+                                    value = pass,
+                                    onValueChange = { pass = it },
+                                    label = { Text("Contraseña") },
+                                    singleLine = true,
+                                    visualTransformation = if (passwordVisible)
+                                        VisualTransformation.None else PasswordVisualTransformation(),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            if (emailValid && passValid && !state.loading) {
+                                                kb?.hide(); focus.clearFocus()
+                                                vm.login(user, pass)
+                                            }
+                                        }
+                                    ),
+                                    trailingIcon = {
+                                        val desc = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                            Icon(
+                                                if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                                contentDescription = desc
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    isError = pass.isNotBlank() && !passValid,
+                                    supportingText = {
+                                        if (pass.isNotBlank() && !passValid) Text("Mínimo 6 caracteres")
+                                    },
+                                    colors = tfColors
+                                )
+                            }
+
+                            Spacer(Modifier.height(6.dp))
+
+                            // Botón con rebote; contiene “ruleta” mientras carga
+                            BouncyButton(
+                                enabled = emailValid && passValid && !state.loading,
+                                onClick = {
+                                    kb?.hide(); focus.clearFocus()
+                                    vm.login(user, pass)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                if (state.loading) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RouletteProgress(modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Entrando a tu cuenta…")
+                                    }
+                                } else {
+                                    Text("Ingresar")
+                                }
+                            }
+
+                            TextButton(onClick = onNavigateToSignUp) {
+                                Text("¿No tienes cuenta? Regístrate aquí")
+                            }
+
+                            // 🔻 Antes llamaba a vm.requestReset(user). Ya no existe en modo local.
+                            TextButton(onClick = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "Recuperación de contraseña no disponible en modo local."
+                                    )
+                                }
+                            }) {
+                                Text("¿Olvidaste tu contraseña?")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ==== Dialog de mensajes (opcional, dejamos ambos: diálogo + snackbar) ====
     val showDialog = state.msg != null
     if (showDialog) {
         AlertDialog(
@@ -116,19 +276,13 @@ fun LoginScreen(
             title = { Text("Atención") },
             text = { Text(state.msg ?: "") },
             confirmButton = {
-                TextButton(onClick = { vm.consumeMessage() }) {
-                    Text("OK")
-                }
+                TextButton(onClick = { vm.consumeMessage() }) { Text("OK") }
             },
-            // Si el mensaje es "Usuario no encontrado", ofrece ir a Registro
             dismissButton = {
-                if (state.msg?.contains("Usuario no encontrado", ignoreCase = true) == true) {
+                if (state.msg?.contains("Usuario no encontrado", true) == true) {
                     TextButton(onClick = {
-                        vm.consumeMessage()
-                        onNavigateToSignUp()
-                    }) {
-                        Text("Registrarme")
-                    }
+                        vm.consumeMessage(); onNavigateToSignUp()
+                    }) { Text("Registrarme") }
                 }
             }
         )
@@ -138,4 +292,171 @@ fun LoginScreen(
     LaunchedEffect(state.email) {
         if (state.email != null) onLogin(user, pass)
     }
+}
+
+/* ===================== Fondo (Ken Burns + overlay más oscuro) ===================== */
+
+@Composable
+private fun CasinoBackground() {
+    val t = rememberInfiniteTransition(label = "kenburns")
+    val scale by t.animateFloat(
+        initialValue = 1.15f, targetValue = 1.30f,
+        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "scale"
+    )
+    val offsetX by t.animateFloat(
+        initialValue = -30f, targetValue = 30f,
+        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "offsetX"
+    )
+    val offsetY by t.animateFloat(
+        initialValue = 10f, targetValue = -10f,
+        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "offsetY"
+    )
+
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.ruleta),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offsetX
+                    translationY = offsetY
+                }
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.60f),
+                            Color.Black.copy(alpha = 0.40f),
+                            Color.Black.copy(alpha = 0.60f)
+                        )
+                    )
+                )
+        )
+    }
+}
+
+/* ===================== Logo (usa PNG transparente) ===================== */
+
+@Composable
+private fun ImageLogo(modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "logoPulse")
+    val scale by t.animateFloat(
+        initialValue = 1f, targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "scale"
+    )
+
+    Image(
+        painter = painterResource(id = R.drawable.logo_casino),
+        contentDescription = "Logo CasinoApp",
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+            .size(260.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+    )
+}
+
+/* ===================== Twinkles (estrellitas detrás del logo) ===================== */
+@Composable
+private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
+    val t = rememberInfiniteTransition(label = "twk")
+    val delays = remember { List(count) { 150 * it } }
+    val anims = delays.mapIndexed { i, d ->
+        t.animateFloat(
+            initialValue = 0f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1400 + d, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "a$i"
+        )
+    }
+    Box(
+        modifier = modifier.drawBehind {
+            val w = size.width; val h = size.height
+            val points = listOf(
+                Offset(w*0.18f, h*0.30f), Offset(w*0.82f, h*0.32f),
+                Offset(w*0.12f, h*0.55f), Offset(w*0.88f, h*0.58f),
+                Offset(w*0.35f, h*0.18f), Offset(w*0.65f, h*0.16f),
+                Offset(w*0.25f, h*0.72f), Offset(w*0.75f, h*0.74f),
+                Offset(w*0.50f, h*0.10f), Offset(w*0.50f, h*0.82f)
+            ).take(count)
+
+            points.forEachIndexed { i, p ->
+                drawCircle(
+                    color = Color(0xFFFFD54F).copy(alpha = anims[i].value * 0.85f),
+                    radius = 5f,
+                    center = p
+                )
+            }
+        }
+    )
+}
+
+/* ===================== Helpers de animación ===================== */
+
+@Composable
+private fun BouncyButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "btnScale"
+    )
+    Button(
+        enabled = enabled,
+        onClick = onClick,
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        pressed = true
+                        try { tryAwaitRelease() } finally { pressed = false }
+                    }
+                )
+            }
+    ) { content() }
+}
+
+@Composable
+private fun RouletteProgress(modifier: Modifier = Modifier) {
+    val rotation = rememberInfiniteTransition(label = "roulette")
+    val angle by rotation.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+        label = "angle"
+    )
+    Box(
+        modifier = modifier
+            .graphicsLayer { rotationZ = angle }
+            .background(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.secondary,
+                        MaterialTheme.colorScheme.primary
+                    )
+                ),
+                shape = CircleShape
+            )
+    )
 }
