@@ -1,12 +1,18 @@
 package com.example.casinoapp.viewmodel
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.casinoapp.data.AppDatabase
+import com.example.casinoapp.data.SessionManager
 import com.example.casinoapp.model.*
 import com.example.casinoapp.repository.CasinoRepository
 import com.example.casinoapp.repository.InMemoryCasinoRepository
+import kotlinx.coroutines.flow.firstOrNull // <--- AÑADIDO
+import kotlinx.coroutines.launch
 import kotlin.math.max
 
 private const val START_BALANCE = 1000
@@ -14,30 +20,61 @@ private const val HISTORY_LIMIT = 10
 private const val BONUS_AMOUNT = 100 // Constante para el bono
 
 class CasinoViewModel(
-    private val repo: CasinoRepository = InMemoryCasinoRepository()
-) : ViewModel() {
+    app: Application
+) : AndroidViewModel(app) {
 
+    private val repo: CasinoRepository = InMemoryCasinoRepository()
+    private val userDao = AppDatabase.get(app).userDao()
+
+    private var currentUserId: Long = 0L
     var uiState by mutableStateOf(CasinoUiState())
         private set
 
-    fun login(username: String, password: String) {
-        if (username.isBlank() || password.isBlank()) {
-            showMessage("Ingresa un usuario y contraseña válidos.")
-            return
+    init {
+        loadUserData()
+    }
+
+    fun loadUserData() = viewModelScope.launch {
+        val email = SessionManager.emailFlow(getApplication()).firstOrNull()
+
+        if (email.isNullOrBlank()) {
+            // Si no hay sesión, llamamos a logout para poner el estado en "no logueado"
+            logoutAndClearState()
+            return@launch
         }
-        val name = username.trim()
+
+        // Buscamos al usuario en la base de datos
+        val user = userDao.getByEmail(email)
+        if (user == null) {
+            // La sesión es inválida (usuario borrado?), deslogueamos
+            logoutAndClearState()
+            return@launch
+        }
+
+        // ¡Éxito! Configuramos el estado inicial con el nombre de usuario real
         uiState = CasinoUiState(
             isLoggedIn = true,
-            // (Asumo que tu UiState tiene 'profile' como discutimos)
-            profile = UserProfile(nombre = name),
-            balance = START_BALANCE,
-            statusMessage = "¡Bienvenido, $name!"
+            profile = UserProfile(
+                nombre = user.username, // <--- Usamos el username de la BD
+                nivel = 1,              // Valor inicial para nivel
+                xpActual = 0            // Valor inicial para XP
+            ),
+            balance = user.balance,
+            statusMessage = "¡Bienvenido, ${user.username}!" // Mensaje de bienvenida real
         )
     }
 
-    fun logout() {
-        uiState = CasinoUiState(statusMessage = "Sesión cerrada.")
+    // Renombramos a "logout" para que sea llamado desde la UI
+    fun logout() = viewModelScope.launch {
+        SessionManager.clear(getApplication()) // Limpia el DataStore
+        uiState = CasinoUiState(statusMessage = "Sesión cerrada.", isLoggedIn = false)
     }
+
+    // Función interna para limpiar el estado sin llamar a SessionManager de nuevo
+    private fun logoutAndClearState() {
+        uiState = CasinoUiState(statusMessage = "Sesión cerrada.", isLoggedIn = false)
+    }
+
 
     fun consumeMessage() {
         uiState = uiState.copy(statusMessage = null)
@@ -55,6 +92,11 @@ class CasinoViewModel(
             statusMessage = description,
             history = newHistory
         )
+        if (currentUserId != 0L) {
+            viewModelScope.launch {
+                userDao.updateBalance(currentUserId, newBalance)
+            }
+        }
     }
 
     private fun canBet(amount: Int): Boolean = amount in 1..uiState.balance
@@ -159,28 +201,31 @@ class CasinoViewModel(
         val playerTotal = handTotal(playerHand)
         val dealerTotal = handTotal(currentDealerHand)
 
+// ...
         val resultMessage: String
         val delta: Int
 
         if (customMessage != null) {
-            resultMessage = customMessage
+            // customMessage es "¡Te has pasado! Gana la casa."
+            resultMessage = "¡Perdió $blackjackBet! (Te has pasado)"
             delta = -blackjackBet
         } else if (playerTotal > 21) {
-            resultMessage = "Te has pasado de 21. Gana la casa."
+            resultMessage = "¡Perdió $blackjackBet! (Te has pasado de 21)"
             delta = -blackjackBet
         } else if (dealerTotal > 21) {
-            resultMessage = "¡El crupier se ha pasado! ¡Ganas!"
+            resultMessage = "¡Ganó $blackjackBet! (Crupier se pasó)"
             delta = blackjackBet
         } else if (playerTotal > dealerTotal) {
-            resultMessage = "¡Tu mano es mayor! ¡Ganas!"
+            resultMessage = "¡Ganó $blackjackBet! (Mano mayor)"
             delta = blackjackBet
         } else if (dealerTotal > playerTotal) {
-            resultMessage = "La mano del crupier es mayor. Gana la casa."
+            resultMessage = "¡Perdió $blackjackBet! (Mano menor)"
             delta = -blackjackBet
         } else {
-            resultMessage = "¡Empate!"
+            resultMessage = "¡Empate! (Push)"
             delta = 0
         }
+// ...
 
         // ---  Añadir XP  ---
         if (delta > 0) { // Ganó
@@ -215,27 +260,27 @@ class CasinoViewModel(
     // --- función de Experiencia (XP) ---
     private fun addExperience(xpAmount: Int) {
 
-        // Asumo que tu UiState tiene 'profile'
         val currentProfile = uiState.profile
         if (currentProfile == null) return
 
+        // Calculamos el XP necesario basado en el nivel actual (ej: Nivel 1 -> 100 XP, Nivel 2 -> 200 XP)
         val xpParaSiguienteNivel = currentProfile.nivel * 100
 
-        val nuevoXpTotal = currentProfile.xpActual + xpAmount
-
+        var nuevoXpTotal = currentProfile.xpActual + xpAmount
         var nuevoNivel = currentProfile.nivel
-        var xpRestante = nuevoXpTotal
 
-        if (nuevoXpTotal >= xpParaSiguienteNivel) {
+        // Bucle por si sube varios niveles de golpe (raro, pero posible)
+        while (nuevoXpTotal >= xpParaSiguienteNivel) {
             nuevoNivel += 1
-            xpRestante = nuevoXpTotal - xpParaSiguienteNivel
+            nuevoXpTotal -= xpParaSiguienteNivel
         }
 
         val nuevoPerfil = currentProfile.copy(
             nivel = nuevoNivel,
-            xpActual = xpRestante
+            xpActual = nuevoXpTotal
         )
 
         uiState = uiState.copy(profile = nuevoPerfil)
     }
 }
+

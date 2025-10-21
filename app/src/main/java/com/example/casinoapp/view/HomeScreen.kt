@@ -36,26 +36,21 @@ import com.example.casinoapp.R
 import com.example.casinoapp.model.CasinoUiState
 import com.example.casinoapp.viewmodel.CasinoViewModel
 import com.example.casinoapp.model.UserProfile
+import com.example.casinoapp.ui.CityBonusCard // <-- NUEVO
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
+import com.example.casinoapp.notification.NotifyHelper
+
 
 /* ---------------------------------- NAV ---------------------------------- */
 
-private enum class HomeTab(val label: String, val icon: ImageVector) {
+private enum class HomeTab(val label: String,  val icon: ImageVector) {
     Dashboard("Inicio", Icons.Filled.Home),
     Roulette("Ruleta", Icons.Filled.Casino),
     Blackjack("Blackjack", Icons.Filled.Circle),
     Slots("Slots", Icons.Filled.Star)
 }
-
-/* ------------------------------- USER MOCK ------------------------------- */
-
-/*private data class UserProfile(
-    val nombre: String = "Basti",
-    val nivel: Int = 3,
-    val xpActual: Int = 45, // 0..100
-)*/
 
 /* --------------------------------- SCREEN -------------------------------- */
 
@@ -68,7 +63,6 @@ fun HomeScreen(
     val uiState by remember { derivedStateOf { viewModel.uiState } }
     val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
 
-    // --- (MODIFICADO) ESTADOS PARA TODOS LOS DIÁLOGOS ---
     var showLimitsDialog by remember { mutableStateOf(false) }
     var showHowToPlayDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
@@ -81,7 +75,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("CasinoApp") },
                 actions = {
-                    IconButton(onClick = { showHistoryDialog = true }) { // <-- CAMBIO
+                    IconButton(onClick = { showHistoryDialog = true }) {
                         Icon(Icons.Filled.History, contentDescription = "Historial")
                     }
                     IconButton(onClick = onLogout) {
@@ -120,8 +114,6 @@ fun HomeScreen(
                     onWithdraw = { viewModel.withdraw(it) },
                     onQuickDeposit = { viewModel.deposit(100) },
                     onNavigateTo = { tab -> selectedTab.value = tab },
-
-                    // --- (MODIFICADO) Pasar todas las acciones ---
                     onShowLimits = { showLimitsDialog = true },
                     onShowLearnMore = { showHowToPlayDialog = true },
                     onShowProfile = { showProfileDialog = true },
@@ -148,7 +140,7 @@ fun HomeScreen(
                     modifier = contentModifier
                 )
             }
-            // Diálogos de Juego Responsable
+
             if (showLimitsDialog) {
                 AlertDialog(
                     onDismissRequest = { showLimitsDialog = false },
@@ -171,8 +163,6 @@ fun HomeScreen(
                     confirmButton = { TextButton(onClick = { showHowToPlayDialog = false }) { Text("Cerrar") } }
                 )
             }
-
-            // Nuevos Diálogos
             if (showHistoryDialog) {
                 AlertDialog(
                     onDismissRequest = { showHistoryDialog = false },
@@ -219,7 +209,6 @@ private fun DashboardSection(
     onWithdraw: (Int) -> Unit,
     onQuickDeposit: () -> Unit,
     onNavigateTo: (HomeTab) -> Unit,
-
     onShowLimits: () -> Unit,
     onShowLearnMore: () -> Unit,
     onShowProfile: () -> Unit,
@@ -236,11 +225,18 @@ private fun DashboardSection(
 
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(1000)
-        }
+        // 1) crea los canales (obligatorio antes de enviar)
+        NotifyHelper.ensureChannels(context)
+
+        // 2) actualiza el reloj (si lo usas para el bono diario)
+        now = System.currentTimeMillis()
+
+        // 3) PRUEBA: envía 1 vez al entrar a Home
+        NotifyHelper.sendBonoDiarioNow(context)
+        NotifyHelper.sendCityBonusNow(context, "Maipú")
+        NotifyHelper.sendRachaNow(context, 3)
     }
+
     val remainingMillis by remember(lastClaimTs, now) {
         mutableStateOf((BONUS_INTERVAL_MS - (now - lastClaimTs)).coerceAtLeast(0))
     }
@@ -252,6 +248,9 @@ private fun DashboardSection(
         lastClaimTs = ts
     }
 
+    // --------- NUEVO: estado para ciudad ---------
+    var city by rememberSaveable { mutableStateOf<String?>(null) }
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier,
@@ -260,12 +259,15 @@ private fun DashboardSection(
         item { HomeHeader() }
 
         item {
-            ProfileBar(
-                profile = profile,
-                unread = 2,
-                onProfileClick = onShowProfile,
-                onNotificationsClick = onShowNotifications
-            )
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                ProfileBar(
+                    profile = profile,
+                    unread = 2,
+                    onProfileClick = onShowProfile,
+                    onNotificationsClick = onShowNotifications,
+                    city = city // <-- NUEVO
+                )
+            }
         }
 
         item {
@@ -294,6 +296,17 @@ private fun DashboardSection(
                 cta = "Depositar",
                 onCta = { onDeposit(maxOf(amountInt, 100)) }
             )
+        }
+
+        // --------- NUEVO: Tarjeta de Bono por ciudad ---------
+        item {
+            GlassCard {
+                CityBonusCard(
+                    currentAmount = amountInt,
+                    onApplyBonus = { bonus -> onDeposit(bonus) },
+                    onCityResolved = { resolved -> city = resolved }
+                )
+            }
         }
 
         item {
@@ -458,7 +471,8 @@ private fun ProfileBar(
     profile: UserProfile,
     unread: Int,
     onProfileClick: () -> Unit,
-    onNotificationsClick: () -> Unit
+    onNotificationsClick: () -> Unit,
+    city: String? = null // <-- NUEVO
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -472,7 +486,10 @@ private fun ProfileBar(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text("Hola, ${profile.nombre}", style = MaterialTheme.typography.titleMedium)
-            Text("¡Que la suerte te acompañe!", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                city?.let { "Estás en: $it" } ?: "¡Que la suerte te acompañe!",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         BadgedBox(
             badge = { if (unread > 0) Badge { Text(unread.coerceAtMost(99).toString()) } },
@@ -520,16 +537,23 @@ private data class Stats(val wins: Int, val losses: Int, val streak: Int)
 private fun computeStats(history: List<String>): Stats {
     var wins = 0
     var losses = 0
-    var streak = 0
-    var current = 0
-    history.forEach { row ->
+    var currentStreak = 0
+    history.asReversed().forEach { row ->
         when {
-            row.contains("Ganó", ignoreCase = true) -> { wins++; current = if (current >= 0) current + 1 else 1 }
-            row.contains("Perdió", ignoreCase = true) -> { losses++; current = if (current <= 0) current - 1 else -1 }
+            row.contains("Ganó", ignoreCase = true) -> {
+                wins++
+                currentStreak = if (currentStreak >= 0) currentStreak + 1 else 1
+            }
+            row.contains("Perdió", ignoreCase = true) -> {
+                losses++
+                currentStreak = if (currentStreak <= 0) currentStreak - 1 else -1
+            }
+            row.contains("Empate", ignoreCase = true) -> {
+                currentStreak = 0
+            }
         }
-        streak = if (kotlin.math.abs(current) > kotlin.math.abs(streak)) current else streak
     }
-    return Stats(wins, losses, streak)
+    return Stats(wins, losses, currentStreak)
 }
 
 @Composable
@@ -843,8 +867,7 @@ private fun AnimatedCurrency(amount: Int) {
 private fun formatCLP(value: Int): String =
     NumberFormat.getCurrencyInstance(Locale("es", "CL")).format(value)
 
-// ---- Bono diario: persistencia y utilidades ----
-private const val BONUS_INTERVAL_MS = 24L * 60 * 60 * 1000  // 24 h en ms
+private const val BONUS_INTERVAL_MS = 24L * 60 * 60 * 1000
 private const val BONUS_AMOUNT = 100
 private const val PREFS_NAME = "casino_prefs"
 private const val KEY_LAST_BONUS_TS = "last_bonus_ts"
@@ -868,7 +891,7 @@ private fun formatHMS(ms: Long): String {
     return "%02d:%02d:%02d".format(h, m, s)
 }
 
-/* ---- Twinkles para el header (mismas estrellitas del login) ---- */
+/* ---- Twinkles ---- */
 @Composable
 private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
     val t = rememberInfiniteTransition(label = "twk")

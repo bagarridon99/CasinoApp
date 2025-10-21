@@ -38,9 +38,12 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun register(email: String, pass: String) = viewModelScope.launch {
+    // <--- FIRMA ACTUALIZADA ---
+    fun register(username: String, email: String, pass: String) = viewModelScope.launch {
         _state.update { it.copy(loading = true, msg = null) }
-        when (val r = repo.register(email, pass)) {
+
+        // <--- LLAMADA ACTUALIZADA ---
+        when (val r = repo.register(username, email, pass)) {
             is AuthResult.Ok -> {
                 _state.update { it.copy(loading = false, msg = "Usuario creado. Inicia sesión para continuar.") }
             }

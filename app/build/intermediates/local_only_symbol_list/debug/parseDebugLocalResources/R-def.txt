@@ -9,6 +9,7 @@ color md_theme_light_tertiary
 drawable blackjack_background
 drawable casino_background
 drawable ic_launcher_foreground
+drawable ic_stat_casino
 drawable logo_casino
 drawable roulette_background
 drawable ruleta

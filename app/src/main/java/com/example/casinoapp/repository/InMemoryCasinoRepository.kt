@@ -76,8 +76,8 @@ class InMemoryCasinoRepository : CasinoRepository {
     }
 
     private fun resultText(delta: Int) = when {
-        delta > 0 -> "Ganaste +$delta"
-        delta < 0 -> "Perdiste $delta"
+        delta > 0 -> "¡Ganó +$delta!"  // Cambiado de "Ganaste"
+        delta < 0 -> "¡Perdió $delta!" // Cambiado de "Perdiste"
         else -> "Empate"
     }
 }

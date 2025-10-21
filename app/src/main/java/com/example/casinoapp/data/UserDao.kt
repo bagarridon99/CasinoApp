@@ -16,6 +16,11 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getByEmail(email: String): UserEntity?
 
+    // <--- FUNCIÓN AÑADIDA ---
+    @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
+    suspend fun getByUsername(username: String): UserEntity?
+    // <--- FIN FUNCIÓN AÑADIDA ---
+
     @Update
     suspend fun update(user: UserEntity)
 
@@ -27,4 +32,7 @@ interface UserDao {
 
     @Query("UPDATE users SET recoveryCode=:code, recoveryCodeExpiresAt=:expiresAt WHERE id=:userId")
     suspend fun setRecovery(userId: Long, code: String, expiresAt: Long)
+
+    @Query("UPDATE users SET balance = :newBalance WHERE id = :userId")
+    suspend fun updateBalance(userId: Long, newBalance: Int)
 }

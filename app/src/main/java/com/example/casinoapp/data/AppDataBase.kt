@@ -7,7 +7,8 @@ import androidx.room.RoomDatabase
 import com.example.casinoapp.data.dao.UserDao
 import com.example.casinoapp.data.entity.UserEntity
 
-@Database(entities = [UserEntity::class], version = 1, exportSchema = false) // <- quita warning
+//                                                  CAMBIO AQUÍ v
+@Database(entities = [UserEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
 
@@ -19,7 +20,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "casino_db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { INSTANCE = it }
             }
     }
 }

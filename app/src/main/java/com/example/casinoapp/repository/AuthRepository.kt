@@ -19,13 +19,21 @@ class AuthRepository(private val db: AppDatabase) {
         return if (ok) AuthResult.Ok(email) else AuthResult.Error("Contraseña incorrecta")
     }
 
-    suspend fun register(email: String, password: String): AuthResult {
+    // <--- FIRMA ACTUALIZADA ---
+    suspend fun register(username: String, email: String, password: String): AuthResult {
+
+        // <--- VALIDACIÓN AÑADIDA ---
+        val existingUser = db.userDao().getByUsername(username)
+        if (existingUser != null) return AuthResult.Error("El nombre de usuario ya está en uso")
+        // <--- FIN VALIDACIÓN ---
+
         val existing = db.userDao().getByEmail(email)
         if (existing != null) return AuthResult.Error("El email ya está registrado")
 
         val (hash, salt) = PasswordHasher.hash(password)
         val id = db.userDao().insert(
-            UserEntity(email = email, passwordHash = hash, passwordSalt = salt)
+            // <--- USERNAME AÑADIDO ---
+            UserEntity(username = username, email = email, passwordHash = hash, passwordSalt = salt, balance = 0)
         )
         return if (id > 0) AuthResult.Ok(email) else AuthResult.Error("No se pudo crear el usuario")
     }

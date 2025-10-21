@@ -1,7 +1,7 @@
 package com.example.casinoapp.repository
 
 import com.example.casinoapp.data.AppDatabase
-import com.example.casinoapp.data.PasswordHasher   // <--- IMPORT CORRECTO
+import com.example.casinoapp.data.PasswordHasher
 import com.example.casinoapp.data.entity.UserEntity
 
 class UserRepository(private val db: AppDatabase) {
@@ -9,10 +9,12 @@ class UserRepository(private val db: AppDatabase) {
     suspend fun findByEmail(email: String): UserEntity? =
         db.userDao().getByEmail(email)
 
-    suspend fun create(email: String, password: String): Long {
+    // <--- FIRMA ACTUALIZADA ---
+    suspend fun create(username: String, email: String, password: String): Long {
         val (hash, salt) = PasswordHasher.hash(password)
         return db.userDao().insert(
-            UserEntity(email = email, passwordHash = hash, passwordSalt = salt)
+            // <--- USERNAME AÑADIDO ---
+            UserEntity(username = username, email = email, passwordHash = hash, passwordSalt = salt, balance = 0)
         )
     }
 

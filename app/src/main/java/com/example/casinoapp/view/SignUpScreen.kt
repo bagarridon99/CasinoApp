@@ -51,6 +51,7 @@ import androidx.compose.animation.core.animateFloat
 // IMPORTACIONES AÑADIDAS
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions // <--- ASEGÚRATE DE TENER ESTA
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +72,7 @@ fun SignUpScreen(
 
     // Campos
     var email by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") } // <--- AÑADIDO
     var pass by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
     var passVisible by rememberSaveable { mutableStateOf(false) }
@@ -80,13 +82,16 @@ fun SignUpScreen(
 
     // Validaciones
     val emailValid = remember(email) { android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() }
+    val usernameValid = remember(username) { username.isNotBlank() } // <--- AÑADIDO
     val passHasLen = pass.length >= 6
     val passHasUpper = pass.any { it.isUpperCase() }
     val passHasDigit = pass.any { it.isDigit() }
     val passStrong = passHasLen && passHasUpper && passHasDigit
     val confirmValid = confirm.isNotEmpty() && confirm == pass
     val ageOk = ageConfirmed == true
-    val canCreate = emailValid && passStrong && confirmValid && ageOk && acceptTerms && !state.loading
+
+    // <--- ACTUALIZADO
+    val canCreate = emailValid && usernameValid && passStrong && confirmValid && ageOk && acceptTerms && !state.loading
 
     // Anim para la tarjeta (rebote sutil en error)
     val shake = remember { Animatable(0f) }
@@ -155,12 +160,30 @@ fun SignUpScreen(
                             supportingText = {
                                 if (email.isNotEmpty() && !emailValid) Text("Ingresa un email válido")
                             },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions( // <--- Corregido
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // <--- CAMPO AÑADIDO PARA USERNAME ---
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = { username = it },
+                            label = { Text("Nombre de usuario") },
+                            singleLine = true,
+                            isError = username.isNotEmpty() && !usernameValid,
+                            supportingText = {
+                                if (username.isNotEmpty() && !usernameValid) Text("El nombre de usuario no puede estar vacío")
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Next
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        // <--- FIN DE CAMPO AÑADIDO ---
 
                         OutlinedTextField(
                             value = pass,
@@ -180,7 +203,7 @@ fun SignUpScreen(
                             supportingText = {
                                 PasswordChecklistRow(passHasLen, passHasUpper, passHasDigit)
                             },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions( // <--- Corregido
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Next
                             ),
@@ -209,7 +232,7 @@ fun SignUpScreen(
                             supportingText = {
                                 if (confirm.isNotEmpty() && !confirmValid) Text("Las contraseñas no coinciden")
                             },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardOptions = KeyboardOptions( // <--- Corregido
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Next
                             ),
@@ -261,7 +284,8 @@ fun SignUpScreen(
                             text = if (state.loading) "Creando…" else "Crear cuenta",
                             enabled = canCreate,
                             loading = state.loading,
-                            onClick = { vm.register(email, pass) }
+                            // <--- ACTUALIZADO CON USERNAME
+                            onClick = { vm.register(username, email, pass) }
                         )
 
                         TextButton(onClick = onBackToLogin, modifier = Modifier.align(Alignment.CenterHorizontally)) {
