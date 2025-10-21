@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.example.casinoapp.R
 import com.example.casinoapp.model.CasinoUiState
 import com.example.casinoapp.viewmodel.CasinoViewModel
+import com.example.casinoapp.model.UserProfile
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
@@ -50,11 +51,11 @@ private enum class HomeTab(val label: String, val icon: ImageVector) {
 
 /* ------------------------------- USER MOCK ------------------------------- */
 
-private data class UserProfile(
+/*private data class UserProfile(
     val nombre: String = "Basti",
     val nivel: Int = 3,
     val xpActual: Int = 45, // 0..100
-)
+)*/
 
 /* --------------------------------- SCREEN -------------------------------- */
 
@@ -113,6 +114,7 @@ fun HomeScreen(
 
             when (selectedTab.value) {
                 HomeTab.Dashboard -> DashboardSection(
+                    profile = uiState.profile,
                     uiState = uiState,
                     onDeposit = { viewModel.deposit(it) },
                     onWithdraw = { viewModel.withdraw(it) },
@@ -125,7 +127,6 @@ fun HomeScreen(
                     onShowProfile = { showProfileDialog = true },
                     onShowNotifications = { showNotificationsDialog = true },
                     onShowRewards = { showRewardsDialog = true },
-
                     modifier = contentModifier
                 )
                 HomeTab.Roulette -> RouletteScreen(
@@ -213,6 +214,7 @@ fun HomeScreen(
 @Composable
 private fun DashboardSection(
     uiState: CasinoUiState,
+    profile: UserProfile,
     onDeposit: (Int) -> Unit,
     onWithdraw: (Int) -> Unit,
     onQuickDeposit: () -> Unit,
@@ -259,7 +261,7 @@ private fun DashboardSection(
 
         item {
             ProfileBar(
-                profile = remember { UserProfile() },
+                profile = profile,
                 unread = 2,
                 onProfileClick = onShowProfile,
                 onNotificationsClick = onShowNotifications
@@ -297,7 +299,7 @@ private fun DashboardSection(
         item {
             GlassCard {
                 RewardsCardContent(
-                    profile = remember { UserProfile() },
+                    profile = profile,
                     onShowRewards = onShowRewards
                 )
             }

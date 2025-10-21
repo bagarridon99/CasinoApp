@@ -11,6 +11,7 @@ import kotlin.math.max
 
 private const val START_BALANCE = 1000
 private const val HISTORY_LIMIT = 10
+private const val BONUS_AMOUNT = 100 // Constante para el bono
 
 class CasinoViewModel(
     private val repo: CasinoRepository = InMemoryCasinoRepository()
@@ -27,7 +28,8 @@ class CasinoViewModel(
         val name = username.trim()
         uiState = CasinoUiState(
             isLoggedIn = true,
-            playerName = name,
+            // (Asumo que tu UiState tiene 'profile' como discutimos)
+            profile = UserProfile(nombre = name),
             balance = START_BALANCE,
             statusMessage = "¡Bienvenido, $name!"
         )
@@ -73,6 +75,13 @@ class CasinoViewModel(
         push(-amount, "Retiro realizado -$amount")
     }
 
+    //  Función para el Bono Diario
+    fun claimDailyBonus() {
+        push(BONUS_AMOUNT, "Bono diario reclamado +$BONUS_AMOUNT")
+
+        addExperience(50) // 50 XP por lealtad
+    }
+
     fun playRoulette(betAmount: Int, bet: RouletteBet) {
         if (!canBet(betAmount)) {
             showMessage("Saldo insuficiente o apuesta inválida.")
@@ -83,6 +92,8 @@ class CasinoViewModel(
         uiState = uiState.copy(
             rouletteState = RouletteGameState(winningNumber = result.winningNumber)
         )
+
+        addExperience(5)
     }
 
     fun playSlots(bet: Int) {
@@ -93,6 +104,8 @@ class CasinoViewModel(
         val result: GameResult = repo.playSlots(bet)
         push(result.delta, result.description)
         uiState = uiState.copy(slotResults = result.slotResults)
+
+        addExperience(15)
     }
 
     private var blackjackBet = 0
@@ -169,6 +182,15 @@ class CasinoViewModel(
             delta = 0
         }
 
+        // ---  Añadir XP  ---
+        if (delta > 0) { // Ganó
+            addExperience(20)
+        } else if (delta < 0) { // Perdió
+            addExperience(5)
+        } else { // Empate
+            addExperience(2)
+        }
+
         push(delta, "Blackjack: $resultMessage")
         uiState = uiState.copy(
             blackjackState = BlackjackGameState(
@@ -188,5 +210,32 @@ class CasinoViewModel(
             aces--
         }
         return total
+    }
+
+    // --- función de Experiencia (XP) ---
+    private fun addExperience(xpAmount: Int) {
+
+        // Asumo que tu UiState tiene 'profile'
+        val currentProfile = uiState.profile
+        if (currentProfile == null) return
+
+        val xpParaSiguienteNivel = currentProfile.nivel * 100
+
+        val nuevoXpTotal = currentProfile.xpActual + xpAmount
+
+        var nuevoNivel = currentProfile.nivel
+        var xpRestante = nuevoXpTotal
+
+        if (nuevoXpTotal >= xpParaSiguienteNivel) {
+            nuevoNivel += 1
+            xpRestante = nuevoXpTotal - xpParaSiguienteNivel
+        }
+
+        val nuevoPerfil = currentProfile.copy(
+            nivel = nuevoNivel,
+            xpActual = xpRestante
+        )
+
+        uiState = uiState.copy(profile = nuevoPerfil)
     }
 }

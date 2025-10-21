@@ -8,7 +8,9 @@ data class CasinoUiState(
     // Propiedades para los juegos
     val rouletteState: RouletteGameState = RouletteGameState(),
     val slotResults: List<SlotSymbol> = emptyList(),
-    val blackjackState: BlackjackGameState = BlackjackGameState()
+    val blackjackState: BlackjackGameState = BlackjackGameState(),
+    // Propiedades para el perfil
+    val profile: UserProfile = UserProfile()
 )
 // clase para el blackjack
 data class BlackjackGameState(
@@ -21,4 +23,10 @@ data class BlackjackGameState(
 // clase para la ruleta
 data class RouletteGameState(
     val winningNumber: Int? = null
+)
+
+data class UserProfile(
+    val nombre: String = "Jugador",
+    val nivel: Int = 1,
+    val xpActual: Int = 0
 )
