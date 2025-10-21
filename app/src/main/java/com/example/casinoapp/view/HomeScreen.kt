@@ -67,12 +67,20 @@ fun HomeScreen(
     val uiState by remember { derivedStateOf { viewModel.uiState } }
     val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
 
+    // --- (MODIFICADO) ESTADOS PARA TODOS LOS DIÁLOGOS ---
+    var showLimitsDialog by remember { mutableStateOf(false) }
+    var showHowToPlayDialog by remember { mutableStateOf(false) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
+    var showRewardsDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("CasinoApp") },
                 actions = {
-                    IconButton(onClick = { /* abrir historial global */ }) {
+                    IconButton(onClick = { showHistoryDialog = true }) { // <-- CAMBIO
                         Icon(Icons.Filled.History, contentDescription = "Historial")
                     }
                     IconButton(onClick = onLogout) {
@@ -96,7 +104,6 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Box(Modifier.fillMaxSize()) {
-            // Fondo animado coherente con el login
             CasinoBackgroundHome()
 
             val contentModifier = Modifier
@@ -111,6 +118,14 @@ fun HomeScreen(
                     onWithdraw = { viewModel.withdraw(it) },
                     onQuickDeposit = { viewModel.deposit(100) },
                     onNavigateTo = { tab -> selectedTab.value = tab },
+
+                    // --- (MODIFICADO) Pasar todas las acciones ---
+                    onShowLimits = { showLimitsDialog = true },
+                    onShowLearnMore = { showHowToPlayDialog = true },
+                    onShowProfile = { showProfileDialog = true },
+                    onShowNotifications = { showNotificationsDialog = true },
+                    onShowRewards = { showRewardsDialog = true },
+
                     modifier = contentModifier
                 )
                 HomeTab.Roulette -> RouletteScreen(
@@ -132,6 +147,63 @@ fun HomeScreen(
                     modifier = contentModifier
                 )
             }
+            // Diálogos de Juego Responsable
+            if (showLimitsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showLimitsDialog = false },
+                    title = { Text("Juego Responsable") },
+                    text = { Text("Establece límites de tiempo y dinero. Jugar es entretenimiento...") },
+                    confirmButton = { TextButton(onClick = { showLimitsDialog = false }) { Text("Entendido") } }
+                )
+            }
+            if (showHowToPlayDialog) {
+                AlertDialog(
+                    onDismissRequest = { showHowToPlayDialog = false },
+                    title = { Text("Cómo Jugar") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("BlackJack: Intenta sumar 21 sin pasarte.")
+                            Text("Máquina Tragamonedas: Gira los rodillos y alinea los símbolos.")
+                            Text("Apuestas a Colores: Elige un color y espera el resultado.")
+                        }
+                    },
+                    confirmButton = { TextButton(onClick = { showHowToPlayDialog = false }) { Text("Cerrar") } }
+                )
+            }
+
+            // Nuevos Diálogos
+            if (showHistoryDialog) {
+                AlertDialog(
+                    onDismissRequest = { showHistoryDialog = false },
+                    title = { Text("Historial") },
+                    text = { Text("Aquí se mostraría el historial global de transacciones y juegos.") },
+                    confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Cerrar") } }
+                )
+            }
+            if (showProfileDialog) {
+                AlertDialog(
+                    onDismissRequest = { showProfileDialog = false },
+                    title = { Text("Perfil de Usuario") },
+                    text = { Text("Aquí se mostraría la pantalla de perfil. Saldo actual: ${formatCLP(uiState.balance)}") },
+                    confirmButton = { TextButton(onClick = { showProfileDialog = false }) { Text("Cerrar") } }
+                )
+            }
+            if (showNotificationsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showNotificationsDialog = false },
+                    title = { Text("Notificaciones") },
+                    text = { Text("Aquí se mostraría la lista de notificaciones") },
+                    confirmButton = { TextButton(onClick = { showNotificationsDialog = false }) { Text("Cerrar") } }
+                )
+            }
+            if (showRewardsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showRewardsDialog = false },
+                    title = { Text("Recompensas") },
+                    text = { Text("Aquí se mostraría la pantalla de Recompensas y sus niveles. Nivel actual:") },
+                    confirmButton = { TextButton(onClick = { showRewardsDialog = false }) { Text("Cerrar") } }
+                )
+            }
         }
     }
 }
@@ -145,13 +217,18 @@ private fun DashboardSection(
     onWithdraw: (Int) -> Unit,
     onQuickDeposit: () -> Unit,
     onNavigateTo: (HomeTab) -> Unit,
+
+    onShowLimits: () -> Unit,
+    onShowLearnMore: () -> Unit,
+    onShowProfile: () -> Unit,
+    onShowNotifications: () -> Unit,
+    onShowRewards: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var amount by rememberSaveable { mutableStateOf("100") }
     val amountInt = amount.toIntOrNull() ?: 0
     val canTransact = amountInt > 0
 
-    // ---- Bono diario (persistente) ----
     val context = LocalContext.current
     var lastClaimTs by rememberSaveable { mutableStateOf(DailyBonusStore.getLastClaimTs(context)) }
 
@@ -167,32 +244,28 @@ private fun DashboardSection(
     }
 
     val claimBonus: () -> Unit = {
-        onQuickDeposit() // onDeposit(BONUS_AMOUNT)
+        onQuickDeposit()
         val ts = System.currentTimeMillis()
         DailyBonusStore.setLastClaimTs(context, ts)
         lastClaimTs = ts
     }
-    // -----------------------------------
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 16.dp) // sin FAB
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-        // Header con logo y twinkles
         item { HomeHeader() }
 
-        // Perfil / saludo
         item {
             ProfileBar(
                 profile = remember { UserProfile() },
                 unread = 2,
-                onProfileClick = { /* ir a perfil */ },
-                onNotificationsClick = { /* abrir notificaciones */ }
+                onProfileClick = onShowProfile,
+                onNotificationsClick = onShowNotifications
             )
         }
 
-        // Saldo
         item {
             GlassCard {
                 BalanceCardContent(
@@ -206,14 +279,12 @@ private fun DashboardSection(
             }
         }
 
-        // === NUEVO: Estadísticas rápidas (reemplaza los atajos) ===
         item {
             GlassCard {
                 QuickStatsRow(history = uiState.history)
             }
         }
 
-        // === NUEVO: Banner de promoción / bono destacado ===
         item {
             PromoBannerCard(
                 title = "Bono del día",
@@ -223,14 +294,15 @@ private fun DashboardSection(
             )
         }
 
-        // Recompensas
         item {
             GlassCard {
-                RewardsCardContent(profile = remember { UserProfile() }, onShowRewards = { })
+                RewardsCardContent(
+                    profile = remember { UserProfile() },
+                    onShowRewards = onShowRewards
+                )
             }
         }
 
-        // Bono diario
         item {
             GlassCard {
                 DailyBonusCardContent(
@@ -240,17 +312,15 @@ private fun DashboardSection(
             }
         }
 
-        // === NUEVO: Juego responsable ===
         item {
             GlassCard {
                 ResponsiblePlayCard(
-                    onSetLimits = { /* navegar a límites */ },
-                    onLearnMore = { /* abrir centro de ayuda */ }
+                    onSetLimits = onShowLimits,
+                    onLearnMore = onShowLearnMore
                 )
             }
         }
 
-        // Juegos populares
         item {
             GlassCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -279,7 +349,6 @@ private fun DashboardSection(
             }
         }
 
-        // Historial
         item {
             GlassCard {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -331,7 +400,6 @@ private fun CasinoBackgroundHome() {
                     translationX = offsetX; translationY = offsetY
                 }
         )
-        // overlay para contraste
         Box(
             Modifier
                 .matchParentSize()
@@ -415,7 +483,7 @@ private fun ProfileBar(
     }
 }
 
-/* ===== NUEVO: Estadísticas rápidas ===== */
+/* ===== Estadísticas rápidas ===== */
 
 @Composable
 private fun QuickStatsRow(history: List<String>) {
@@ -428,19 +496,19 @@ private fun QuickStatsRow(history: List<String>) {
             title = "Victorias",
             value = stats.wins.toString(),
             icon = Icons.Filled.ThumbUp,
-            modifier = Modifier.weight(1f)   // <-- weight AQUÍ
+            modifier = Modifier.weight(1f)
         )
         StatCard(
             title = "Derrotas",
             value = stats.losses.toString(),
             icon = Icons.Filled.ThumbDown,
-            modifier = Modifier.weight(1f)   // <-- weight AQUÍ
+            modifier = Modifier.weight(1f)
         )
         StatCard(
             title = "Racha",
             value = (if (stats.streak > 0) "+${stats.streak}" else "${stats.streak}"),
             icon = Icons.Filled.TrendingUp,
-            modifier = Modifier.weight(1f)   // <-- weight AQUÍ
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -470,7 +538,7 @@ private fun StatCard(
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
-        modifier = modifier.height(84.dp), // <-- ya NO usamos weight aquí
+        modifier = modifier.height(84.dp),
         shape = RoundedCornerShape(18.dp)
     ) {
         Row(
@@ -493,7 +561,7 @@ private fun StatCard(
     }
 }
 
-/* ===== NUEVO: Banner de promoción ===== */
+/* ===== Banner de promoción ===== */
 
 @Composable
 private fun PromoBannerCard(
@@ -525,7 +593,7 @@ private fun PromoBannerCard(
     }
 }
 
-/* ===== NUEVO: Juego responsable ===== */
+/* ===== Juego responsable ===== */
 
 @Composable
 private fun ResponsiblePlayCard(
