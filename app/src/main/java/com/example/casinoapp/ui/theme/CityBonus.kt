@@ -14,9 +14,15 @@ import com.example.casinoapp.location.LocationHelper
 import kotlinx.coroutines.launch
 
 /**
- * - Muestra la ciudad ("Estás en: ...")
- * - Si hay ciudad, permite reclamar un bono del +20% del monto actual (o del mínimo si no se editó).
- * Devuelve la ciudad encontrada vía onCityResolved.
+ * Tarjeta que:
+ * 1) Pide permisos de ubicación (cuando no están concedidos).
+ * 2) Intenta resolver la ciudad actual del usuario (geocoder).
+ * 3) Si hay ciudad, permite aplicar un bono del +20% sobre un monto base.
+ *
+ * @param currentAmount Monto actual de referencia (se usa para calcular el bono)
+ * @param onApplyBonus Callback para aplicar el bono calculado (en pesos)
+ * @param onCityResolved Callback que recibe la ciudad detectada (o null si falla)
+ * @param modifier Modificador opcional para el contenedor
  */
 @Composable
 fun CityBonusCard(
@@ -28,11 +34,13 @@ fun CityBonusCard(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Estado local: permisos, estado textual, ciudad resuelta y loading
     var hasPermission by remember { mutableStateOf(LocationHelper.hasPermission(ctx)) }
     var status by remember { mutableStateOf<String>("Ubicación no solicitada") }
     var city by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
 
+    // Launcher para pedir múltiples permisos de ubicación (fine + coarse)
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { map ->
@@ -42,6 +50,7 @@ fun CityBonusCard(
         status = if (granted) "Permiso concedido" else "Permiso denegado"
     }
 
+    // Función local: solicita permisos al sistema
     fun request() {
         launcher.launch(arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -49,21 +58,23 @@ fun CityBonusCard(
         ))
     }
 
+    // Función suspendida: intenta obtener ubicación y resolver ciudad con geocoder
     suspend fun resolve() {
         loading = true
         status = "Obteniendo ubicación…"
-        val loc = LocationHelper.getCurrentLocation(ctx)
+        val loc = LocationHelper.getCurrentLocation(ctx) // usa estrategia de best-effort
         if (loc != null) {
             status = "Ubicación lista"
             val c = LocationHelper.resolveCity(ctx, loc.latitude, loc.longitude)
             city = c
-            onCityResolved(c)
+            onCityResolved(c) // informa a quien consume este composable
         } else {
             status = "No se pudo obtener ubicación"
         }
         loading = false
     }
 
+    // Contenedor visual: superficie elevada y con esquinas redondeadas del theme
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         tonalElevation = 6.dp,
@@ -72,6 +83,7 @@ fun CityBonusCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Bono por ciudad", style = MaterialTheme.typography.titleLarge)
             Text(
+                // Muestra ciudad si existe; si no, el estado (permiso/obteniendo/error)
                 when {
                     city != null -> "Estás en: $city"
                     else -> status
@@ -84,17 +96,19 @@ fun CityBonusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!hasPermission) {
+                    // Botón para pedir permisos si aún no están
                     Button(onClick = ::request, enabled = !loading) { Text("Pedir permiso") }
                 } else {
+                    // Botón para detectar ubicación cuando ya hay permisos
                     OutlinedButton(
                         onClick = { scope.launch { resolve() } },
                         enabled = !loading
                     ) { Text("Detectar ubicación") }
                 }
 
-                // Si tenemos ciudad, permitimos aplicar bono +20%
+                // Si hay ciudad resuelta, habilita aplicar bono +20%
                 if (city != null) {
-                    val base = currentAmount.coerceAtLeast(100)
+                    val base = currentAmount.coerceAtLeast(100) // mínimo de seguridad
                     val bonus = (base * 20) / 100
                     Button(onClick = { onApplyBonus(bonus) }) {
                         Text("+20% ($$bonus)")

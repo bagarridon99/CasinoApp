@@ -48,14 +48,21 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 
+/**
+ * Pantalla de Login:
+ * - Fondo animado tipo "Ken Burns" coherente con Home.
+ * - Tarjeta con campos de email/contraseña y validación mínima.
+ * - Botón con animación “bouncy” y loader tipo ruleta durante carga.
+ * - Maneja snackbar + diálogo para feedback de errores.
+ */
 @OptIn(ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LoginScreen(
     snackbarHostState: SnackbarHostState,
-    onLogin: (String, String) -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onLogin: (String, String) -> Unit,    // callback al loguear con éxito
+    onNavigateToSignUp: () -> Unit        // navegación a registro
 ) {
-    // ViewModel con Factory clásica
+    // ViewModel de Auth con factory manual (requiere Application)
     val app = LocalContext.current.applicationContext as Application
     val vm: AuthViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -63,24 +70,25 @@ fun LoginScreen(
             return AuthViewModel(app) as T
         }
     })
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsState() // estado expuesto por el VM
 
+    // Campos controlados + visibilidad de contraseña
     var user by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // IME/Focus
+    // IME/Focus para UX fluida
     val focus = LocalFocusManager.current
     val kb = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
 
-    // Validación simple
+    // Validaciones mínimas (email regex del framework y largo de pass)
     val emailValid by remember(user) {
         mutableStateOf(android.util.Patterns.EMAIL_ADDRESS.matcher(user).matches())
     }
     val passValid by remember(pass) { mutableStateOf(pass.length >= 6) }
 
-    // Aparición escalonada
+    // Aparición escalonada de la tarjeta y sus campos
     var showCard by remember { mutableStateOf(false) }
     var showFields by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -89,7 +97,7 @@ fun LoginScreen(
         showFields = true
     }
 
-    // Shake al error
+    // Efecto “shake” cuando llega un mensaje de error
     val shake = remember { Animatable(0f) }
     LaunchedEffect(state.msg) {
         state.msg?.let { snackbarHostState.showSnackbar(it) }
@@ -107,7 +115,7 @@ fun LoginScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            // === Fondo con Ken Burns + overlay oscuro ===
+            // Fondo con Ken Burns + overlay oscuro
             CasinoBackground()
 
             Column(
@@ -116,7 +124,7 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // ===== Logo con “twinkles” detrás =====
+                // Logo con “twinkles” de fondo
                 Box(contentAlignment = Alignment.Center) {
                     Twinkles(Modifier.size(300.dp), count = 10)
                     ImageLogo(Modifier.padding(top = 4.dp))
@@ -124,13 +132,12 @@ fun LoginScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Tarjeta que entra con fade + slide
+                // Tarjeta de login (glass) con animación de entrada
                 AnimatedVisibility(
                     visible = showCard,
                     enter = fadeIn() + slideInVertically { it / 12 },
                     exit = fadeOut()
                 ) {
-                    // ===== Tarjeta estilo “glass” =====
                     Surface(
                         shape = RoundedCornerShape(28.dp),
                         tonalElevation = 8.dp,
@@ -138,14 +145,14 @@ fun LoginScreen(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .graphicsLayer { translationX = shake.value } // efecto shake
+                            .graphicsLayer { translationX = shake.value } // aplica shake en error
                     ) {
                         Column(
                             Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Paleta para TextFields
+                            // Paleta visual coherente para los TextFields
                             val tfColors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f),
@@ -157,7 +164,7 @@ fun LoginScreen(
                                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             )
 
-                            // Campos aparecen escalonados
+                            // Campo: email
                             AnimatedVisibility(
                                 visible = showFields,
                                 enter = fadeIn(animationSpec = tween(250, delayMillis = 0)) +
@@ -181,6 +188,7 @@ fun LoginScreen(
                                 )
                             }
 
+                            // Campo: contraseña (con alternar visibilidad)
                             AnimatedVisibility(
                                 visible = showFields,
                                 enter = fadeIn(animationSpec = tween(250, delayMillis = 80)) +
@@ -225,7 +233,7 @@ fun LoginScreen(
 
                             Spacer(Modifier.height(6.dp))
 
-                            // Botón con rebote; contiene “ruleta” mientras carga
+                            // Botón principal: “Ingresar”
                             BouncyButton(
                                 enabled = emailValid && passValid && !state.loading,
                                 onClick = {
@@ -247,11 +255,12 @@ fun LoginScreen(
                                 }
                             }
 
+                            // Navegación a registro
                             TextButton(onClick = onNavigateToSignUp) {
                                 Text("¿No tienes cuenta? Regístrate aquí")
                             }
 
-                            // 🔻 Antes llamaba a vm.requestReset(user). Ya no existe en modo local.
+                            // Recuperación de contraseña: mensaje de demo
                             TextButton(onClick = {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -268,7 +277,7 @@ fun LoginScreen(
         }
     }
 
-    // ==== Dialog de mensajes (opcional, dejamos ambos: diálogo + snackbar) ====
+    // Diálogo opcional de feedback (además del snackbar)
     val showDialog = state.msg != null
     if (showDialog) {
         AlertDialog(
@@ -278,6 +287,7 @@ fun LoginScreen(
             confirmButton = {
                 TextButton(onClick = { vm.consumeMessage() }) { Text("OK") }
             },
+            // Atajo para llevar a SignUp si el error es “Usuario no encontrado”
             dismissButton = {
                 if (state.msg?.contains("Usuario no encontrado", true) == true) {
                     TextButton(onClick = {
@@ -288,16 +298,17 @@ fun LoginScreen(
         )
     }
 
-    // Navega cuando el login fue OK
+    // Cuando el VM muestra email != null, consideramos login OK y navegamos.
     LaunchedEffect(state.email) {
         if (state.email != null) onLogin(user, pass)
     }
 }
 
-/* ===================== Fondo (Ken Burns + overlay más oscuro) ===================== */
+/* ===================== Fondo y piezas decorativas (coherente Home) ===================== */
 
 @Composable
 private fun CasinoBackground() {
+    // Efecto Ken Burns (zoom/pan suave y cíclico)
     val t = rememberInfiniteTransition(label = "kenburns")
     val scale by t.animateFloat(
         initialValue = 1.15f, targetValue = 1.30f,
@@ -329,6 +340,7 @@ private fun CasinoBackground() {
                     translationY = offsetY
                 }
         )
+        // Overlay oscuro para legibilidad de la tarjeta
         Box(
             Modifier
                 .matchParentSize()
@@ -345,118 +357,4 @@ private fun CasinoBackground() {
     }
 }
 
-/* ===================== Logo (usa PNG transparente) ===================== */
 
-@Composable
-private fun ImageLogo(modifier: Modifier = Modifier) {
-    val t = rememberInfiniteTransition(label = "logoPulse")
-    val scale by t.animateFloat(
-        initialValue = 1f, targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
-
-    Image(
-        painter = painterResource(id = R.drawable.logo_casino),
-        contentDescription = "Logo CasinoApp",
-        contentScale = ContentScale.Fit,
-        modifier = modifier
-            .size(260.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-    )
-}
-
-/* ===================== Twinkles (estrellitas detrás del logo) ===================== */
-@Composable
-private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
-    val t = rememberInfiniteTransition(label = "twk")
-    val delays = remember { List(count) { 150 * it } }
-    val anims = delays.mapIndexed { i, d ->
-        t.animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1400 + d, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "a$i"
-        )
-    }
-    Box(
-        modifier = modifier.drawBehind {
-            val w = size.width; val h = size.height
-            val points = listOf(
-                Offset(w*0.18f, h*0.30f), Offset(w*0.82f, h*0.32f),
-                Offset(w*0.12f, h*0.55f), Offset(w*0.88f, h*0.58f),
-                Offset(w*0.35f, h*0.18f), Offset(w*0.65f, h*0.16f),
-                Offset(w*0.25f, h*0.72f), Offset(w*0.75f, h*0.74f),
-                Offset(w*0.50f, h*0.10f), Offset(w*0.50f, h*0.82f)
-            ).take(count)
-
-            points.forEachIndexed { i, p ->
-                drawCircle(
-                    color = Color(0xFFFFD54F).copy(alpha = anims[i].value * 0.85f),
-                    radius = 5f,
-                    center = p
-                )
-            }
-        }
-    )
-}
-
-/* ===================== Helpers de animación ===================== */
-
-@Composable
-private fun BouncyButton(
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "btnScale"
-    )
-    Button(
-        enabled = enabled,
-        onClick = onClick,
-        modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        try { tryAwaitRelease() } finally { pressed = false }
-                    }
-                )
-            }
-    ) { content() }
-}
-
-@Composable
-private fun RouletteProgress(modifier: Modifier = Modifier) {
-    val rotation = rememberInfiniteTransition(label = "roulette")
-    val angle by rotation.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-        label = "angle"
-    )
-    Box(
-        modifier = modifier
-            .graphicsLayer { rotationZ = angle }
-            .background(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.secondary,
-                        MaterialTheme.colorScheme.primary
-                    )
-                ),
-                shape = CircleShape
-            )
-    )
-}

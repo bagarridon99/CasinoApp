@@ -37,38 +37,47 @@ import java.util.Locale
 
 /* ------------------------------ Tipos/estado ------------------------------ */
 
+// Modo de apuesta (pestañas)
 private enum class BetMode { Color, Numero }
 
+// Resultado resumido para la banda (ganó/perdió y montos)
 private data class Outcome(val positive: Boolean, val wonAmount: Int, val lostAmount: Int)
 
 /* -------------------------------- Pantalla -------------------------------- */
-
+/**
+ * Pantalla de Ruleta:
+ * - Permite elegir monto y tipo de apuesta (color o número).
+ * - Llama a `onPlay(monto, apuesta)` y luego observa `uiState.rouletteState.winningNumber`
+ *   para mostrar banda de resultado (ganó/perdió).
+ */
 @Composable
 fun RouletteScreen(
     uiState: CasinoUiState,
     onPlay: (Int, RouletteBet) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Estado de monto y selección
     var betAmount by rememberSaveable { mutableStateOf("50") }
     var betMode by rememberSaveable { mutableStateOf(BetMode.Color) }
     var selectedBet by remember { mutableStateOf<RouletteBet>(RouletteBet.ByColor(RouletteColor.ROJO)) }
 
-    // Resultado del último giro (para la banda)
+    // Resultado del último giro (para la banda animada)
     var lastOutcome by remember { mutableStateOf<Outcome?>(null) }
     var showOutcome by remember { mutableStateOf(false) }
 
     val amountInt = betAmount.toIntOrNull() ?: 0
+    // Validación de monto y de selección según modo
     val canBet = amountInt in 1..uiState.balance &&
             when (betMode) {
                 BetMode.Color -> selectedBet is RouletteBet.ByColor
                 BetMode.Numero -> (selectedBet as? RouletteBet.ByNumber)?.number in 0..36
             }
 
-    // Cuando aparezca un número ganador, calculamos si esta selección ganó o perdió
+    // Cuando llega un número ganador desde el VM, calculamos si ganó la apuesta actual
     val winningNumber = uiState.rouletteState.winningNumber
     LaunchedEffect(winningNumber) {
         if (winningNumber != null && amountInt > 0) {
-            val payoutTotal = calcPayout(amountInt, selectedBet, winningNumber) // total (apuesta + ganancia)
+            val payoutTotal = calcPayout(amountInt, selectedBet, winningNumber) // total a pagar (apuesta+ganancia)
             lastOutcome = if (payoutTotal > 0) {
                 Outcome(positive = true, wonAmount = payoutTotal, lostAmount = 0)
             } else {
@@ -78,7 +87,7 @@ fun RouletteScreen(
         }
     }
 
-    // Auto-ocultar la banda de resultado
+    // Auto-ocultar la banda después de unos segundos
     LaunchedEffect(showOutcome) {
         if (showOutcome) {
             delay(4000)
@@ -93,8 +102,10 @@ fun RouletteScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
+            // Header con saldo + imagen
             item { GameHeader(imageRes = R.drawable.roulette_background, balance = uiState.balance) }
 
+            // Panel de apuesta: monto, presets, selector Color/Número, y botón "Jugar"
             item {
                 Card(
                     shape = RoundedCornerShape(24.dp),
@@ -110,7 +121,7 @@ fun RouletteScreen(
                         // Monto
                         OutlinedTextField(
                             value = betAmount,
-                            onValueChange = { betAmount = it.filter(Char::isDigit) },
+                            onValueChange = { betAmount = it.filter(Char::isDigit) }, // solo números
                             label = { Text("Monto de la apuesta") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
@@ -123,13 +134,14 @@ fun RouletteScreen(
                             balance = uiState.balance
                         )
 
-                        // Selector de modo (Color / Número)
+                        // Tabs: Color / Número
                         TabRow(selectedTabIndex = betMode.ordinal) {
                             BetMode.values().forEach { mode ->
                                 Tab(
                                     selected = betMode == mode,
                                     onClick = {
                                         betMode = mode
+                                        // Reinicia selección coherente con modo
                                         selectedBet =
                                             if (mode == BetMode.Color) RouletteBet.ByColor(RouletteColor.ROJO)
                                             else RouletteBet.ByNumber(1)
@@ -145,7 +157,6 @@ fun RouletteScreen(
                                 currentBet = selectedBet,
                                 onBetSelected = { selectedBet = it }
                             )
-
                             BetMode.Numero -> NumberBetSelector(
                                 currentBet = selectedBet,
                                 onBetSelected = { selectedBet = it }
@@ -161,7 +172,7 @@ fun RouletteScreen(
                                 .height(52.dp)
                         ) { Text("Jugar ruleta") }
 
-                        // Pagos
+                        // Leyenda de pagos
                         PayoutLegend()
                     }
                 }
@@ -171,9 +182,7 @@ fun RouletteScreen(
             item { WinningNumberDisplay(uiState.rouletteState.winningNumber) }
 
             // Banda de resultado (gana / pierde)
-            item {
-                if (showOutcome) ResultBanner(lastOutcome)
-            }
+            item { if (showOutcome) ResultBanner(lastOutcome) }
         }
     }
 }
@@ -196,7 +205,7 @@ private fun GameHeader(imageRes: Int, balance: Int) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            // Overlay para contraste
+            // Overlay para contraste del texto de saldo
             Box(
                 Modifier
                     .matchParentSize()
@@ -225,6 +234,7 @@ private fun ColorBetSelector(
     val selected = (currentBet as? RouletteBet.ByColor)?.color
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         RouletteColor.values().forEach { color ->
+            // Borde cuando está seleccionado
             val selectedBorder =
                 if (selected == color) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
             OutlinedButton(
@@ -281,6 +291,7 @@ private fun NumberBetSelector(
 @Composable
 private fun WinningNumberDisplay(winningNumber: Int?) {
     if (winningNumber == null) {
+        // Estado inicial: invita a apostar
         Card(
             Modifier
                 .fillMaxWidth()
@@ -292,6 +303,7 @@ private fun WinningNumberDisplay(winningNumber: Int?) {
             }
         }
     } else {
+        // Muestra círculo con color según número + número central
         val resultColor = getRouletteNumberColor(winningNumber)
         Card(
             Modifier.fillMaxWidth(),
@@ -330,7 +342,6 @@ private fun WinningNumberDisplay(winningNumber: Int?) {
 @Composable
 private fun ResultBanner(outcome: Outcome?) {
     if (outcome == null) return
-
     val positive = outcome.positive
     val bg = if (positive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
     val fg = if (positive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
@@ -383,6 +394,7 @@ private fun QuickAmountChips(onPick: (Int) -> Unit, balance: Int) {
 
 /* --------------------------------- Helpers -------------------------------- */
 
+// Color según número (0 verde; set de rojos; resto negro)
 private fun getRouletteNumberColor(number: Int): Color =
     when {
         number == 0 -> Color(0xFF008000) // verde
@@ -394,10 +406,10 @@ private fun getRouletteNumberColor(number: Int): Color =
     }
 
 /**
- * Devuelve el **total** a pagar (apuesta + ganancia) si gana; 0 si pierde.
+ * Calcula el **total** a pagar (apuesta + ganancia) si gana; 0 si pierde.
  * - Color Rojo/Negro: 1:1  -> total = amount * 2
  * - Verde: 17:1            -> total = amount * 18
- * - Número exacto: 35:1    -> total = amount * 36
+ * - Número: 35:1           -> total = amount * 36
  */
 private fun calcPayout(amount: Int, bet: RouletteBet, winningNumber: Int): Int {
     return when (bet) {
@@ -415,5 +427,6 @@ private fun calcPayout(amount: Int, bet: RouletteBet, winningNumber: Int): Int {
     }
 }
 
+// Formatea CLP
 private fun formatCLP(value: Int): String =
     NumberFormat.getCurrencyInstance(Locale("es", "CL")).format(value)

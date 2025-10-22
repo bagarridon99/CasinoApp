@@ -36,15 +36,14 @@ import com.example.casinoapp.R
 import com.example.casinoapp.model.CasinoUiState
 import com.example.casinoapp.viewmodel.CasinoViewModel
 import com.example.casinoapp.model.UserProfile
-import com.example.casinoapp.ui.CityBonusCard // <-- NUEVO
+import com.example.casinoapp.ui.CityBonusCard // widget de bono por ciudad (ubicación)
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 import com.example.casinoapp.notification.NotifyHelper
 
-
 /* ---------------------------------- NAV ---------------------------------- */
-
+// Tabs de la parte inferior (Bottom Navigation)
 private enum class HomeTab(val label: String,  val icon: ImageVector) {
     Dashboard("Inicio", Icons.Filled.Home),
     Roulette("Ruleta", Icons.Filled.Casino),
@@ -53,16 +52,24 @@ private enum class HomeTab(val label: String,  val icon: ImageVector) {
 }
 
 /* --------------------------------- SCREEN -------------------------------- */
-
+/**
+ * Pantalla Home con:
+ * - TopBar acciones (historial / logout)
+ * - NavBar inferior con 4 secciones
+ * - Dashboard: saldo, promos, bono diario, bono por ciudad, estadísticas
+ * - Ruleta / Blackjack / Slots como secciones navegables
+ */
 @Composable
 fun HomeScreen(
     viewModel: CasinoViewModel,
     snackbarHostState: SnackbarHostState,
     onLogout: () -> Unit = {}
 ) {
+    // Observa uiState del ViewModel (sin recomponer toda la pantalla en exceso)
     val uiState by remember { derivedStateOf { viewModel.uiState } }
     val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
 
+    // Diálogos modales de la Home
     var showLimitsDialog by remember { mutableStateOf(false) }
     var showHowToPlayDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
@@ -99,6 +106,7 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Box(Modifier.fillMaxSize()) {
+            // Fondo con efecto Ken Burns + overlay
             CasinoBackgroundHome()
 
             val contentModifier = Modifier
@@ -106,6 +114,7 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
 
+            // Contenido según tab seleccionada
             when (selectedTab.value) {
                 HomeTab.Dashboard -> DashboardSection(
                     profile = uiState.profile,
@@ -141,6 +150,7 @@ fun HomeScreen(
                 )
             }
 
+            // Diálogos informativos (responsable, cómo jugar, perfil, etc.)
             if (showLimitsDialog) {
                 AlertDialog(
                     onDismissRequest = { showLimitsDialog = false },
@@ -200,7 +210,13 @@ fun HomeScreen(
 }
 
 /* ------------------------------ DASHBOARD ------------------------------- */
-
+/**
+ * Sección principal con:
+ * - Perfil + ciudad detectada
+ * - Saldo y acciones (depositar/retirar)
+ * - Stats rápidas, promos, bono diario, bono por ciudad
+ * - Acceso a juegos populares
+ */
 @Composable
 private fun DashboardSection(
     uiState: CasinoUiState,
@@ -223,24 +239,23 @@ private fun DashboardSection(
     val context = LocalContext.current
     var lastClaimTs by rememberSaveable { mutableStateOf(DailyBonusStore.getLastClaimTs(context)) }
 
+    // Entra a Home: crea canales y envía notificaciones de demo
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
-        // 1) crea los canales (obligatorio antes de enviar)
-        NotifyHelper.ensureChannels(context)
-
-        // 2) actualiza el reloj (si lo usas para el bono diario)
-        now = System.currentTimeMillis()
-
-        // 3) PRUEBA: envía 1 vez al entrar a Home
+        NotifyHelper.ensureChannels(context)       // crea canales si faltan
+        now = System.currentTimeMillis()           // reloj para el bono
+        // Ejemplos de notificaciones (demostración de recurso nativo)
         NotifyHelper.sendBonoDiarioNow(context)
         NotifyHelper.sendCityBonusNow(context, "Maipú")
         NotifyHelper.sendRachaNow(context, 3)
     }
 
+    // Tiempo restante para bono diario
     val remainingMillis by remember(lastClaimTs, now) {
         mutableStateOf((BONUS_INTERVAL_MS - (now - lastClaimTs)).coerceAtLeast(0))
     }
 
+    // Reclamar bono: deposita rápido y persiste timestamp
     val claimBonus: () -> Unit = {
         onQuickDeposit()
         val ts = System.currentTimeMillis()
@@ -248,7 +263,7 @@ private fun DashboardSection(
         lastClaimTs = ts
     }
 
-    // --------- NUEVO: estado para ciudad ---------
+    // Guardamos ciudad detectada desde CityBonusCard
     var city by rememberSaveable { mutableStateOf<String?>(null) }
 
     LazyColumn(
@@ -258,6 +273,7 @@ private fun DashboardSection(
     ) {
         item { HomeHeader() }
 
+        // Barra de perfil + badge de notificaciones + ciudad
         item {
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 ProfileBar(
@@ -265,11 +281,12 @@ private fun DashboardSection(
                     unread = 2,
                     onProfileClick = onShowProfile,
                     onNotificationsClick = onShowNotifications,
-                    city = city // <-- NUEVO
+                    city = city
                 )
             }
         }
 
+        // Saldo + ingresar monto + depositar/retirar
         item {
             GlassCard {
                 BalanceCardContent(
@@ -283,22 +300,26 @@ private fun DashboardSection(
             }
         }
 
+        // Stats rápidas basadas en history
         item {
             GlassCard {
                 QuickStatsRow(history = uiState.history)
             }
         }
 
+        // Banner de promo
         item {
-            PromoBannerCard(
-                title = "Bono del día",
-                subtitle = "Recibe +20% en tu próximo depósito",
-                cta = "Depositar",
-                onCta = { onDeposit(maxOf(amountInt, 100)) }
-            )
+            GlassCard {
+                PromoBannerCard(
+                    title = "Bono del día",
+                    subtitle = "Recibe +20% en tu próximo depósito",
+                    cta = "Depositar",
+                    onCta = { onDeposit(maxOf(amountInt, 100)) }
+                )
+            }
         }
 
-        // --------- NUEVO: Tarjeta de Bono por ciudad ---------
+        // Bono por ciudad (recurso nativo: ubicación + geocoder)
         item {
             GlassCard {
                 CityBonusCard(
@@ -309,6 +330,7 @@ private fun DashboardSection(
             }
         }
 
+        // Recompensas (nivel/xp)
         item {
             GlassCard {
                 RewardsCardContent(
@@ -318,6 +340,7 @@ private fun DashboardSection(
             }
         }
 
+        // Bono diario con barra de progreso
         item {
             GlassCard {
                 DailyBonusCardContent(
@@ -327,6 +350,7 @@ private fun DashboardSection(
             }
         }
 
+        // Juego responsable
         item {
             GlassCard {
                 ResponsiblePlayCard(
@@ -336,6 +360,7 @@ private fun DashboardSection(
             }
         }
 
+        // Accesos rápidos a juegos
         item {
             GlassCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -364,6 +389,7 @@ private fun DashboardSection(
             }
         }
 
+        // Historial simple
         item {
             GlassCard {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -386,6 +412,7 @@ private fun DashboardSection(
 
 @Composable
 private fun CasinoBackgroundHome() {
+    // Efecto “Ken Burns” suave en imagen de fondo
     val t = rememberInfiniteTransition(label = "kenburnsHome")
     val scale by t.animateFloat(
         initialValue = 1.10f, targetValue = 1.22f,
@@ -415,6 +442,7 @@ private fun CasinoBackgroundHome() {
                     translationX = offsetX; translationY = offsetY
                 }
         )
+        // Overlay oscuro para contraste con el contenido
         Box(
             Modifier
                 .matchParentSize()
@@ -433,6 +461,7 @@ private fun CasinoBackgroundHome() {
 
 @Composable
 private fun HomeHeader() {
+    // Logo centrado con “twinkles” (estrellitas) decorativas
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.height(160.dp)) {
             Twinkles(modifier = Modifier.size(220.dp), count = 8)
@@ -446,7 +475,7 @@ private fun HomeHeader() {
     }
 }
 
-/* --------------------------------- CARDS --------------------------------- */
+/* --- GlassCard y bloques de contenido: helpers de UI para consistencia --- */
 
 @Composable
 private fun GlassCard(
@@ -464,466 +493,3 @@ private fun GlassCard(
     }
 }
 
-/* ----------------------------- CONTENT BLOCKS ---------------------------- */
-
-@Composable
-private fun ProfileBar(
-    profile: UserProfile,
-    unread: Int,
-    onProfileClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
-    city: String? = null // <-- NUEVO
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ElevatedCard(onClick = onProfileClick, shape = MaterialTheme.shapes.large) {
-            Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Person, contentDescription = "Perfil", modifier = Modifier.size(28.dp))
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Hola, ${profile.nombre}", style = MaterialTheme.typography.titleMedium)
-            Text(
-                city?.let { "Estás en: $it" } ?: "¡Que la suerte te acompañe!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        BadgedBox(
-            badge = { if (unread > 0) Badge { Text(unread.coerceAtMost(99).toString()) } },
-            modifier = Modifier.padding(end = 2.dp)
-        ) {
-            IconButton(onClick = onNotificationsClick) {
-                Icon(Icons.Filled.Notifications, contentDescription = "Notificaciones")
-            }
-        }
-    }
-}
-
-/* ===== Estadísticas rápidas ===== */
-
-@Composable
-private fun QuickStatsRow(history: List<String>) {
-    val stats = remember(history) { computeStats(history) }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        StatCard(
-            title = "Victorias",
-            value = stats.wins.toString(),
-            icon = Icons.Filled.ThumbUp,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            title = "Derrotas",
-            value = stats.losses.toString(),
-            icon = Icons.Filled.ThumbDown,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            title = "Racha",
-            value = (if (stats.streak > 0) "+${stats.streak}" else "${stats.streak}"),
-            icon = Icons.Filled.TrendingUp,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-private data class Stats(val wins: Int, val losses: Int, val streak: Int)
-
-private fun computeStats(history: List<String>): Stats {
-    var wins = 0
-    var losses = 0
-    var currentStreak = 0
-    history.asReversed().forEach { row ->
-        when {
-            row.contains("Ganó", ignoreCase = true) -> {
-                wins++
-                currentStreak = if (currentStreak >= 0) currentStreak + 1 else 1
-            }
-            row.contains("Perdió", ignoreCase = true) -> {
-                losses++
-                currentStreak = if (currentStreak <= 0) currentStreak - 1 else -1
-            }
-            row.contains("Empate", ignoreCase = true) -> {
-                currentStreak = 0
-            }
-        }
-    }
-    return Stats(wins, losses, currentStreak)
-}
-
-@Composable
-private fun StatCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    ElevatedCard(
-        modifier = modifier.height(84.dp),
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(icon, contentDescription = title)
-            Column {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-/* ===== Banner de promoción ===== */
-
-@Composable
-private fun PromoBannerCard(
-    title: String,
-    subtitle: String,
-    cta: String,
-    onCta: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        tonalElevation = 6.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.80f)
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(Icons.Filled.CardGiftcard, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-            Button(onClick = onCta, shape = MaterialTheme.shapes.large) { Text(cta) }
-        }
-    }
-}
-
-/* ===== Juego responsable ===== */
-
-@Composable
-private fun ResponsiblePlayCard(
-    onSetLimits: () -> Unit,
-    onLearnMore: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Juego responsable", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Establece límites y toma descansos. Jugar es entretenimiento, no una forma de ingresos.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AssistChip(onClick = onSetLimits, label = { Text("Establecer límites") }, leadingIcon = { Icon(Icons.Filled.Timer, null) })
-            AssistChip(onClick = onLearnMore, label = { Text("Aprender más") }, leadingIcon = { Icon(Icons.Filled.Info, null) })
-        }
-    }
-}
-
-/* ----------------------------- BONO DIARIO ----------------------------- */
-
-@Composable
-private fun RewardsCardContent(profile: UserProfile, onShowRewards: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Recompensas", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        AssistChip(onClick = onShowRewards, label = { Text("Ver") })
-    }
-    Spacer(Modifier.height(10.dp))
-    Text("Nivel ${profile.nivel} • ${profile.xpActual}%")
-    LinearProgressIndicator(
-        progress = profile.xpActual / 100f,
-        modifier = Modifier.fillMaxWidth(),
-        trackColor = MaterialTheme.colorScheme.surfaceVariant
-    )
-    Text(
-        "Juega para subir de nivel y desbloquear bonos.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-@Composable
-private fun DailyBonusCardContent(
-    remainingMillis: Long,
-    onClaim: () -> Unit
-) {
-    val available = remainingMillis <= 0L
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Bono diario", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    if (available) "Reclama $${BONUS_AMOUNT} gratis hoy."
-                    else "Disponible en ${formatHMS(remainingMillis)}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(onClick = onClaim, enabled = available, shape = MaterialTheme.shapes.large) {
-                Text(if (available) "Reclamar" else "Esperando…")
-            }
-        }
-        if (!available) {
-            Spacer(Modifier.height(8.dp))
-            DailyBonusProgress(remainingMs = remainingMillis, totalMs = BONUS_INTERVAL_MS)
-        }
-    }
-}
-
-@Composable
-private fun DailyBonusProgress(remainingMs: Long, totalMs: Long) {
-    val fraction = 1f - (remainingMs.toFloat() / totalMs.coerceAtLeast(1))
-    LinearProgressIndicator(
-        progress = fraction.coerceIn(0f, 1f),
-        modifier = Modifier.fillMaxWidth(),
-        trackColor = MaterialTheme.colorScheme.surfaceVariant
-    )
-}
-
-/* ------------------------------ BALANCE ------------------------------ */
-
-@Composable
-private fun BalanceCardContent(
-    balance: Int,
-    amount: String,
-    onAmountChange: (String) -> Unit,
-    canTransact: Boolean,
-    onDeposit: () -> Unit,
-    onWithdraw: () -> Unit
-) {
-    Text("Saldo disponible", style = MaterialTheme.typography.titleLarge)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        AnimatedCurrency(balance)
-        Spacer(Modifier.width(8.dp))
-        Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null)
-    }
-    OutlinedTextField(
-        value = amount,
-        onValueChange = onAmountChange,
-        label = { Text("Monto") },
-        singleLine = true,
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(Modifier.height(6.dp))
-    QuickAmountChips(
-        current = amount,
-        balance = balance,
-        onPick = { picked -> onAmountChange(picked.toString()) }
-    )
-    Spacer(Modifier.height(6.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onDeposit, enabled = canTransact, modifier = Modifier.weight(1f)) {
-            Text("Depositar")
-        }
-        FilledTonalButton(onClick = onWithdraw, enabled = canTransact, modifier = Modifier.weight(1f)) {
-            Text("Retirar")
-        }
-    }
-}
-
-@Composable
-private fun QuickAmountChips(
-    current: String,
-    balance: Int,
-    onPick: (Int) -> Unit
-) {
-    val presets = listOf(50, 100, 200, 500)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        presets.forEach { v ->
-            AssistChip(onClick = { onPick(v) }, label = { Text("\$${v}") })
-        }
-        AssistChip(onClick = { onPick(balance) }, label = { Text("MAX") })
-    }
-}
-
-/* ------------------------------ GAME CARD ------------------------------ */
-
-@Composable
-private fun GameCard(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "gcScale"
-    )
-
-    Card(
-        onClick = onClick,
-        modifier = modifier
-            .aspectRatio(1f)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        try { tryAwaitRelease() } finally { pressed = false }
-                    }
-                )
-            }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(36.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
-/* ----------------------------- HISTORIAL ----------------------------- */
-
-@Composable
-private fun EmptyHistory() {
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(Icons.Filled.History, null, modifier = Modifier.size(42.dp))
-        Spacer(Modifier.height(8.dp))
-        Text("Aún no hay movimientos", fontWeight = FontWeight.SemiBold)
-        Text("Juega o deposita para ver tu historial.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun HistoryRow(raw: String) {
-    val title = raw.substringBefore(":").ifBlank { raw }
-    val amountPart = raw.substringAfter(": ", "").substringBefore(" (")
-    val datePart = raw.substringAfter("(", "").substringBeforeLast(")")
-    val isPositive = title.startsWith("Depósito") || title.contains("Ganó", ignoreCase = true)
-    val amountColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFC62828)
-
-    ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
-        trailingContent = { if (amountPart.isNotEmpty()) Text(amountPart, color = amountColor, fontWeight = FontWeight.Bold) },
-        supportingContent = { if (datePart.isNotEmpty()) Text(datePart) }
-    )
-}
-
-/* ------------------------------- SNACKBAR ------------------------------- */
-
-@Composable
-private fun AppSnackbar(host: SnackbarHostState) {
-    SnackbarHost(host) { data ->
-        val isError = data.visuals.withDismissAction
-        val bg = if (isError) MaterialTheme.colorScheme.errorContainer
-        else MaterialTheme.colorScheme.inverseSurface
-        val fg = if (isError) MaterialTheme.colorScheme.onErrorContainer
-        else MaterialTheme.colorScheme.inverseOnSurface
-
-        Snackbar(
-            containerColor = bg,
-            contentColor = fg,
-            snackbarData = data,
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
-}
-
-/* ----------------------------- ANIM UTILITIES ----------------------------- */
-
-@Composable
-private fun AnimatedCurrency(amount: Int) {
-    var target by remember { mutableIntStateOf(amount) }
-    LaunchedEffect(amount) { target = amount }
-    val animated by animateIntAsState(targetValue = target, label = "cash")
-    Text(formatCLP(animated), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-}
-
-/* ---------------------------------- UTILS --------------------------------- */
-
-private fun formatCLP(value: Int): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "CL")).format(value)
-
-private const val BONUS_INTERVAL_MS = 24L * 60 * 60 * 1000
-private const val BONUS_AMOUNT = 100
-private const val PREFS_NAME = "casino_prefs"
-private const val KEY_LAST_BONUS_TS = "last_bonus_ts"
-
-private object DailyBonusStore {
-    fun getLastClaimTs(context: android.content.Context): Long {
-        val sp = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        return sp.getLong(KEY_LAST_BONUS_TS, 0L)
-    }
-    fun setLastClaimTs(context: android.content.Context, ts: Long) {
-        val sp = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        sp.edit().putLong(KEY_LAST_BONUS_TS, ts).apply()
-    }
-}
-
-private fun formatHMS(ms: Long): String {
-    val totalSec = ms / 1000
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return "%02d:%02d:%02d".format(h, m, s)
-}
-
-/* ---- Twinkles ---- */
-@Composable
-private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
-    val t = rememberInfiniteTransition(label = "twk")
-    val delays = remember { List(count) { 150 * it } }
-    val anims = delays.mapIndexed { i, d ->
-        t.animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1400 + d, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "a$i"
-        )
-    }
-    Box(
-        modifier = modifier.drawBehind {
-            val w = size.width; val h = size.height
-            val points = listOf(
-                Offset(w*0.18f, h*0.30f), Offset(w*0.82f, h*0.32f),
-                Offset(w*0.12f, h*0.55f), Offset(w*0.88f, h*0.58f),
-                Offset(w*0.35f, h*0.18f), Offset(w*0.65f, h*0.16f),
-                Offset(w*0.25f, h*0.72f), Offset(w*0.75f, h*0.74f),
-                Offset(w*0.50f, h*0.10f), Offset(w*0.50f, h*0.82f)
-            ).take(count)
-
-            points.forEachIndexed { i, p ->
-                drawCircle(
-                    color = Color(0xFFFFD54F).copy(alpha = anims[i].value * 0.85f),
-                    radius = 5f,
-                    center = p
-                )
-            }
-        }
-    )
-}

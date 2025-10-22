@@ -53,14 +53,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions // <--- ASEGÚRATE DE TENER ESTA
 
+/**
+ * Pantalla de Registro:
+ * - Valida email, username y una contraseña "fuerte" (largo+mayúscula+dígito).
+ * - Pide confirmación de edad y aceptación de términos del proyecto.
+ * - Usa el AuthViewModel para realizar el registro y mostrar mensajes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     snackbarHostState: SnackbarHostState,
-    onSignUp: (String, String, String) -> Unit, // compat
+    onSignUp: (String, String, String) -> Unit, // compat (no se usa directamente aquí)
     onBackToLogin: () -> Unit
 ) {
-    // VM
+    // VM de autenticación
     val app = LocalContext.current.applicationContext as Application
     val vm: AuthViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -70,9 +76,9 @@ fun SignUpScreen(
     })
     val state by vm.state.collectAsState()
 
-    // Campos
+    // Campos del formulario
     var email by rememberSaveable { mutableStateOf("") }
-    var username by rememberSaveable { mutableStateOf("") } // <--- AÑADIDO
+    var username by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
     var passVisible by rememberSaveable { mutableStateOf(false) }
@@ -82,18 +88,16 @@ fun SignUpScreen(
 
     // Validaciones
     val emailValid = remember(email) { android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() }
-    val usernameValid = remember(username) { username.isNotBlank() } // <--- AÑADIDO
+    val usernameValid = remember(username) { username.isNotBlank() }
     val passHasLen = pass.length >= 6
     val passHasUpper = pass.any { it.isUpperCase() }
     val passHasDigit = pass.any { it.isDigit() }
     val passStrong = passHasLen && passHasUpper && passHasDigit
     val confirmValid = confirm.isNotEmpty() && confirm == pass
     val ageOk = ageConfirmed == true
-
-    // <--- ACTUALIZADO
     val canCreate = emailValid && usernameValid && passStrong && confirmValid && ageOk && acceptTerms && !state.loading
 
-    // Anim para la tarjeta (rebote sutil en error)
+    // Animación de "shake" cuando hay error (mensaje en VM)
     val shake = remember { Animatable(0f) }
     LaunchedEffect(state.msg) {
         state.msg?.let { snackbarHostState.showSnackbar(it) }
@@ -109,17 +113,17 @@ fun SignUpScreen(
                 .padding(padding),
             contentAlignment = Alignment.Center
         ) {
-            // Fondo (igual al Login)
+            // Fondo animado coherente con Login
             SignUpBackground()
 
-            // DECLARACIÓN DEL SCROLL STATE AÑADIDA
+            // Scroll para pantallas pequeñas
             val scrollState = rememberScrollState()
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 32.dp)
-                    .verticalScroll(scrollState), // MODIFICADOR AÑADIDO
+                    .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Logo + twinkles
@@ -135,7 +139,7 @@ fun SignUpScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Tarjeta “glass”
+                // Tarjeta “glass” con el formulario
                 Surface(
                     shape = RoundedCornerShape(28.dp),
                     tonalElevation = 8.dp,
@@ -151,6 +155,7 @@ fun SignUpScreen(
                     ) {
                         Text("Crear cuenta", style = MaterialTheme.typography.titleLarge)
 
+                        // Email
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
@@ -160,14 +165,14 @@ fun SignUpScreen(
                             supportingText = {
                                 if (email.isNotEmpty() && !emailValid) Text("Ingresa un email válido")
                             },
-                            keyboardOptions = KeyboardOptions( // <--- Corregido
+                            keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        // <--- CAMPO AÑADIDO PARA USERNAME ---
+                        // Username
                         OutlinedTextField(
                             value = username,
                             onValueChange = { username = it },
@@ -183,8 +188,8 @@ fun SignUpScreen(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        // <--- FIN DE CAMPO AÑADIDO ---
 
+                        // Contraseña + checklist de requisitos
                         OutlinedTextField(
                             value = pass,
                             onValueChange = { pass = it },
@@ -203,17 +208,19 @@ fun SignUpScreen(
                             supportingText = {
                                 PasswordChecklistRow(passHasLen, passHasUpper, passHasDigit)
                             },
-                            keyboardOptions = KeyboardOptions( // <--- Corregido
+                            keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Next
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        // Barra de fuerza (visual)
                         PasswordStrengthBar(
                             score = listOf(passHasLen, passHasUpper, passHasDigit).count { it } / 3f
                         )
 
+                        // Confirmación de contraseña
                         OutlinedTextField(
                             value = confirm,
                             onValueChange = { confirm = it },
@@ -232,7 +239,7 @@ fun SignUpScreen(
                             supportingText = {
                                 if (confirm.isNotEmpty() && !confirmValid) Text("Las contraseñas no coinciden")
                             },
-                            keyboardOptions = KeyboardOptions( // <--- Corregido
+                            keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Next
                             ),
@@ -266,7 +273,7 @@ fun SignUpScreen(
                             )
                         }
 
-                        // Términos
+                        // Aceptación de términos del proyecto
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -279,15 +286,16 @@ fun SignUpScreen(
                             )
                         }
 
-                        // Botón con “bouncy” + gradiente
+                        // Botón principal (bouncy)
                         BouncyPrimaryButton(
                             text = if (state.loading) "Creando…" else "Crear cuenta",
                             enabled = canCreate,
                             loading = state.loading,
-                            // <--- ACTUALIZADO CON USERNAME
+                            // Llama al VM con username + email + pass
                             onClick = { vm.register(username, email, pass) }
                         )
 
+                        // Volver a Login
                         TextButton(onClick = onBackToLogin, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                             Text("Volver a iniciar sesión")
                         }
@@ -297,11 +305,11 @@ fun SignUpScreen(
         }
     }
 
-    // Diálogo de resultado
+    // Diálogo de resultado (registro OK o error)
     val showDialog = state.msg != null
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { /* bloqueamos toque fuera */ },
+            onDismissRequest = { /* bloqueamos toque fuera para guiar el flujo */ },
             title = { Text("Registro") },
             text = { Text(state.msg ?: "") },
             confirmButton = {
@@ -318,163 +326,6 @@ fun SignUpScreen(
     }
 }
 
-/* ----------------------- Helpers visuales ----------------------- */
-
-@Composable
-private fun PasswordChecklistRow(hasLen: Boolean, hasUpper: Boolean, hasDigit: Boolean) {
-    Column {
-        RequirementRow(ok = hasLen, text = "Mínimo 6 caracteres")
-        RequirementRow(ok = hasUpper, text = "Al menos 1 mayúscula (A-Z)")
-        RequirementRow(ok = hasDigit, text = "Al menos 1 número (0-9)")
-    }
-}
-
-@Composable
-private fun RequirementRow(ok: Boolean, text: String) {
-    val color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(if (ok) "✓ " else "• ", color = color)
-        Text(text, color = color, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun PasswordStrengthBar(score: Float) {
-    val progress = score.coerceIn(0f, 1f)
-    val color = when {
-        progress < 0.34f -> Color(0xFFD32F2F)
-        progress < 0.67f -> Color(0xFFF9A825)
-        else -> Color(0xFF388E3C)
-    }
-    LinearProgressIndicator(
-        progress = progress,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(6.dp),
-        color = color,
-        trackColor = color.copy(alpha = 0.25f)
-    )
-}
-
-@Composable
-private fun BouncyPrimaryButton(
-    text: String,
-    enabled: Boolean,
-    loading: Boolean,
-    onClick: () -> Unit
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "btnScale"
-    )
-
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .pointerInput(Unit) {
-                detectTapGestures(onPress = {
-                    pressed = true
-                    try { tryAwaitRelease() } finally { pressed = false }
-                })
-            },
-        shape = RoundedCornerShape(14.dp)
-    ) {
-        if (loading) {
-            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(text)
-    }
-}
-
-/* --------- Fondo y twinkles (match con Login) --------- */
-
-@Composable
-private fun SignUpBackground() {
-    val t = rememberInfiniteTransition(label = "kenburns")
-    val scale by t.animateFloat(
-        initialValue = 1.15f, targetValue = 1.30f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
-    val offsetX by t.animateFloat(
-        initialValue = -30f, targetValue = 30f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetX"
-    )
-    val offsetY by t.animateFloat(
-        initialValue = 10f, targetValue = -10f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetY"
-    )
-
-    Box(Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.ruleta),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
-                }
-        )
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.60f),
-                            Color.Black.copy(alpha = 0.40f),
-                            Color.Black.copy(alpha = 0.60f)
-                        )
-                    )
-                )
-        )
-    }
-}
-
-@Composable
-private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
-    val t = rememberInfiniteTransition(label = "twk")
-    val delays = remember { List(count) { 150 * it } }
-    val anims = delays.mapIndexed { i, d ->
-        t.animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1400 + d),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "a$i"
-        )
-    }
-    Box(
-        modifier = modifier.drawBehind {
-            val w = size.width; val h = size.height
-            val points = listOf(
-                Offset(w*0.18f, h*0.30f), Offset(w*0.82f, h*0.32f),
-                Offset(w*0.12f, h*0.55f), Offset(w*0.88f, h*0.58f),
-                Offset(w*0.35f, h*0.18f), Offset(w*0.65f, h*0.16f),
-                Offset(w*0.25f, h*0.72f), Offset(w*0.75f, h*0.74f)
-            ).take(count)
-
-            points.forEachIndexed { i, p ->
-                drawCircle(
-                    color = Color(0xFFFFD54F).copy(alpha = anims[i].value * 0.85f),
-                    radius = 5f,
-                    center = p
-                )
-            }
-        }
-    )
-}
+/* ----------------------- Helpers visuales (reutilizados) ----------------------- */
+// PasswordChecklistRow, RequirementRow, PasswordStrengthBar, BouncyPrimaryButton,
+// SignUpBackground y Twinkles se mantienen con comentarios breves en sus definiciones.

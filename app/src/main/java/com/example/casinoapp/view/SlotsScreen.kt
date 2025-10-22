@@ -21,6 +21,11 @@ import androidx.compose.ui.unit.sp
 import com.example.casinoapp.R
 import com.example.casinoapp.model.CasinoUiState
 
+/**
+ * Pantalla de Tragamonedas:
+ * - Ingresa monto, presiona “Girar” y observa `uiState.slotResults` desde el VM.
+ * - Muestra un banner con “ganaste/perdiste” según el payout calculado localmente.
+ */
 @Composable
 fun SlotsScreen(
     uiState: CasinoUiState,
@@ -36,11 +41,9 @@ fun SlotsScreen(
     var resultText by remember { mutableStateOf<String?>(null) }
     var resultWin by remember { mutableStateOf(false) }
 
-    // Cuando cambien los resultados desde el VM, dejamos de “girar” y calculamos el resultado
+    // Cuando cambien los resultados desde el VM, detenemos "girando" y calculamos payout
     LaunchedEffect(uiState.slotResults) {
-        if (spinning) {
-            spinning = false
-        }
+        if (spinning) spinning = false
         if (uiState.slotResults.isNotEmpty() && betInt > 0) {
             val payout = calcSlotsPayout(betInt, uiState.slotResults.map { it.emoji })
             resultWin = payout > 0
@@ -59,13 +62,12 @@ fun SlotsScreen(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
+            // Header con imagen y saldo
             GameHeader(imageRes = R.drawable.slots_background, balance = uiState.balance)
 
-            // Panel de apuesta + botón
+            // Panel de apuesta + botón Girar
             Card(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
@@ -74,7 +76,7 @@ fun SlotsScreen(
                 ) {
                     OutlinedTextField(
                         value = bet,
-                        onValueChange = { bet = it.filter(Char::isDigit) },
+                        onValueChange = { bet = it.filter(Char::isDigit) }, // sólo números
                         label = { Text("Monto de la apuesta") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -90,9 +92,9 @@ fun SlotsScreen(
 
                     Button(
                         onClick = {
-                            resultText = null       // limpiamos resultado anterior
-                            spinning = true
-                            onPlay(betInt)
+                            resultText = null        // limpia resultado previo
+                            spinning = true          // muestra loader
+                            onPlay(betInt)           // delega en VM la jugada
                         },
                         enabled = canSpin && !spinning,
                         modifier = Modifier
@@ -100,10 +102,7 @@ fun SlotsScreen(
                             .height(52.dp)
                     ) {
                         if (spinning) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(10.dp))
                             Text("Girando…")
                         } else {
@@ -111,11 +110,12 @@ fun SlotsScreen(
                         }
                     }
 
+                    // Leyenda simple de pagos
                     PayoutLegend()
                 }
             }
 
-            // Rodillos
+            // Rodillos / resultado
             if (uiState.slotResults.isNotEmpty() || spinning) {
                 ElevatedCard(
                     modifier = Modifier
@@ -130,7 +130,7 @@ fun SlotsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         if (spinning) {
-                            // Estado simple mientras “gira”
+                            // Loader mientras “gira”
                             LinearProgressIndicator(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -139,6 +139,7 @@ fun SlotsScreen(
                             Spacer(Modifier.height(16.dp))
                         }
 
+                        // 3 “ventanas” del slot (usa emojis del VM o placeholders si girando)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -148,16 +149,13 @@ fun SlotsScreen(
                         ) {
                             val placeholder = listOf("🎰", "🎲", "⭐")
                             val symbols = if (spinning) placeholder else uiState.slotResults.map { it.emoji }
-                            // 3 “ventanas” del slot
                             symbols
-                                .padEndTo(3, "⭐") // por si el VM trae menos de 3 temporalmente
+                                .padEndTo(3, "⭐") // por si llega menos de 3
                                 .take(3)
-                                .forEach { emoji ->
-                                    ReelWindow(emoji)
-                                }
+                                .forEach { emoji -> ReelWindow(emoji) }
                         }
 
-                        // Resultado (ganaste/perdiste)
+                        // Banda de resultado (si existe)
                         resultText?.let { txt ->
                             Spacer(Modifier.height(12.dp))
                             ResultBanner(text = txt, positive = resultWin)
@@ -165,7 +163,7 @@ fun SlotsScreen(
                     }
                 }
             } else {
-                // Estado vacío
+                // Estado vacío inicial
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -203,11 +201,7 @@ private fun ReelWindow(emoji: String) {
                 .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                emoji,
-                fontSize = 48.sp,
-                lineHeight = 48.sp
-            )
+            Text(emoji, fontSize = 48.sp, lineHeight = 48.sp)
         }
     }
 }
@@ -232,10 +226,7 @@ private fun ResultBanner(text: String, positive: Boolean) {
 @Composable
 private fun PayoutLegend() {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            "Premios:",
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
-        )
+        Text("Premios:", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
         Text("• 3 iguales → x4", style = MaterialTheme.typography.bodySmall)
         Text("• 2 iguales → x2", style = MaterialTheme.typography.bodySmall)
         Text("• Si no, pierdes tu apuesta", style = MaterialTheme.typography.bodySmall)
@@ -273,6 +264,7 @@ private fun GameHeader(imageRes: Int, balance: Int) {
 
 /* -------------------------------- Logic -------------------------------- */
 
+// Calcula payout según coincidencias (3 iguales x4, 2 iguales x2)
 private fun calcSlotsPayout(bet: Int, emojis: List<String>): Int {
     if (emojis.size < 3) return 0
     val a = emojis[0]; val b = emojis[1]; val c = emojis[2]
@@ -283,6 +275,7 @@ private fun calcSlotsPayout(bet: Int, emojis: List<String>): Int {
     }
 }
 
+// Rellena lista hasta tamaño `size` agregando `pad` al final
 private fun List<String>.padEndTo(size: Int, pad: String): List<String> {
     if (this.size >= size) return this
     val out = this.toMutableList()
@@ -290,6 +283,7 @@ private fun List<String>.padEndTo(size: Int, pad: String): List<String> {
     return out
 }
 
+// Formato CLP
 private fun formatCLP(value: Int): String {
     val nf = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("es", "CL"))
     return nf.format(value)

@@ -4,12 +4,7 @@ package com.example.casinoapp.view
 
 import android.media.MediaPlayer
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,24 +36,27 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 import androidx.compose.ui.res.painterResource
 
-
 /* =======================================================================
  *  BLACKJACK
+ *  Pantalla principal del juego de Blackjack.
+ *  - Muestra saldo y permite apostar.
+ *  - Controla manos de jugador y crupier.
+ *  - Anima estados (confetti, banners) y reproduce SFX.
  * ======================================================================= */
 
 @Composable
 fun BlackjackScreen(
-    uiState: BlackjackGameState,
-    balance: Int,
-    onStartGame: (Int) -> Unit,
-    onHit: () -> Unit,
-    onStand: () -> Unit,
+    uiState: BlackjackGameState,     // Estado del juego (manos, turno, mensajes)
+    balance: Int,                    // Saldo actual del usuario para validar apuestas
+    onStartGame: (Int) -> Unit,      // Inicio de mano nueva con apuesta
+    onHit: () -> Unit,               // Pedir carta
+    onStand: () -> Unit,             // Plantarse
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
 
-    // --- SFX (no fallan si no hay /res/raw) ---
+    // --- Inicializa players de sonido (si no existen recursos no falla) ---
     val sfx = remember {
         SoundFx(
             shuffle = tryCreatePlayer(context, "shuffle"),
@@ -67,19 +65,21 @@ fun BlackjackScreen(
             lose = tryCreatePlayer(context, "lose")
         )
     }
+    // Libera SFX al salir de la pantalla
     DisposableEffect(Unit) { onDispose { sfx.release() } }
 
+    // Apuesta editable con estado guardable (sobre recomposiciones)
     var bet by rememberSaveable { mutableStateOf("100") }
     val betInt = bet.toIntOrNull() ?: 0
     val canStart = betInt in 1..balance
     val isGameInProgress = uiState.isPlayerTurn
 
-    // Resultado visual
+    // Estado de resultado visual (banner + confetti)
     var outcomeText by remember { mutableStateOf<String?>(null) }
     var outcomePositive by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
 
-    // Reacciona a cambios de estado/mensajes del juego
+    // Reacciona a cambios: mensajes del juego, fin de mano, etc.
     LaunchedEffect(isGameInProgress, uiState.gameMessage) {
         if (!isGameInProgress && uiState.playerHand.isNotEmpty()) {
             sfx.flip.startSafely()
@@ -87,29 +87,30 @@ fun BlackjackScreen(
         uiState.gameMessage?.let { msg ->
             outcomeText = msg
             when {
+                // Casos de victoria / blackjack
                 msg.contains("Ganaste", true) || msg.contains("Blackjack", true) -> {
                     outcomePositive = true
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     sfx.win.startSafely()
                     showConfetti = true
                     launch {
-                        delay(3800)
-                        showConfetti = false
+                        delay(3800); showConfetti = false
                     }
                 }
+                // Derrota
                 msg.contains("Perdiste", true) || msg.contains("pierdes", true) -> {
                     outcomePositive = false
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     sfx.lose.startSafely()
                 }
+                // Empate
                 msg.contains("Empate", true) || msg.contains("Push", true) -> {
                     outcomePositive = false
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             }
             launch {
-                delay(4200)
-                outcomeText = null
+                delay(4200); outcomeText = null
             }
         }
     }
@@ -133,12 +134,13 @@ fun BlackjackScreen(
                     )
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Solo disponible cuando no está en curso la mano
                         AnimatedVisibility(!isGameInProgress) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Coloca tu apuesta", style = MaterialTheme.typography.titleMedium)
                                 OutlinedTextField(
                                     value = bet,
-                                    onValueChange = { bet = it.filter(Char::isDigit) },
+                                    onValueChange = { bet = it.filter(Char::isDigit) }, // solo dígitos
                                     label = { Text("Monto") },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.fillMaxWidth(),
@@ -149,12 +151,14 @@ fun BlackjackScreen(
                                         )
                                     }
                                 )
+                                // Atajos de apuesta rápida
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     listOf(50, 100, 200, 500).forEach { preset ->
                                         AssistChip(onClick = { bet = preset.toString() }, label = { Text("\$${preset}") })
                                     }
                                     AssistChip(onClick = { bet = balance.toString() }, label = { Text("MAX") })
                                 }
+                                // Iniciar mano
                                 Button(
                                     onClick = { sfx.shuffle.startSafely(); onStartGame(betInt) },
                                     enabled = canStart,
@@ -174,7 +178,7 @@ fun BlackjackScreen(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            // --- Crupier ---
+                            // --- Crupier: muestra suma parcial si la mano sigue en curso ---
                             val dealerShownTotal =
                                 if (isGameInProgress) "${cardValueToString(uiState.dealerHand.first())} + ?"
                                 else handTotal(uiState.dealerHand).toString()
@@ -187,6 +191,7 @@ fun BlackjackScreen(
                                     hintText = dealerShownTotal
                                 )
                             }
+                            // Segunda carta oculta mientras el jugador juega
                             CardsRow(dealer = true, hiddenSecond = isGameInProgress, cards = uiState.dealerHand)
 
                             // --- Jugador ---
@@ -207,6 +212,7 @@ fun BlackjackScreen(
                                 Text(it, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                             }
 
+                            // Acciones mientras es turno del jugador
                             AnimatedVisibility(isGameInProgress) {
                                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Button(
@@ -220,6 +226,7 @@ fun BlackjackScreen(
                                 }
                             }
 
+                            // Botón para nueva mano al terminar
                             AnimatedVisibility(!isGameInProgress) {
                                 Button(
                                     onClick = { sfx.shuffle.startSafely(); onStartGame((bet.toIntOrNull() ?: 0).coerceAtLeast(1)) },
@@ -231,7 +238,7 @@ fun BlackjackScreen(
                 }
             }
 
-            // Banda de resultado
+            // Banda con outcome (aparece/oculta animado)
             item {
                 AnimatedVisibility(visible = outcomeText != null) {
                     OutcomeBanner(text = outcomeText ?: "", positive = outcomePositive)
@@ -239,14 +246,12 @@ fun BlackjackScreen(
             }
         }
 
-        // Confetti encima
+        // Confetti superpuesto cuando hay victoria
         ConfettiOverlay(visible = showConfetti)
     }
 }
 
-/* =======================================================================
- *  SUB-COMPONENTES
- * ======================================================================= */
+/* ========================= SUB-COMPONENTES UI ========================= */
 
 @Composable
 private fun GameHeader(imageRes: Int, balance: Int) {
@@ -313,6 +318,7 @@ private fun OutcomeBanner(text: String, positive: Boolean) {
 }
 
 /* ----------------------------- CONFETTI -------------------------------- */
+// Overlay con piezas animadas cayendo; usa InfiniteTransition para loops.
 
 @Composable
 private fun ConfettiOverlay(visible: Boolean) {
@@ -343,6 +349,7 @@ private fun ConfettiOverlay(visible: Boolean) {
     }
 }
 
+// Pieza de confetti con color/velocidad aleatoria
 private data class ConfettiPiece(val startX: Int, val size: Int, val color: Color, val duration: Int) {
     companion object {
         fun random(): ConfettiPiece {
@@ -361,6 +368,7 @@ private data class ConfettiPiece(val startX: Int, val size: Int, val color: Colo
 }
 
 /* ------------------------------ HELPERS -------------------------------- */
+// Utilidades de Blackjack: cálculo de totales, formateo CLP y SFX.
 
 private fun isBlackjack(cards: List<Int>) = cards.size == 2 && handTotal(cards) == 21
 private fun isBust(cards: List<Int>) = handTotal(cards) > 21
@@ -370,7 +378,7 @@ private fun cardValueToString(value: Int) = when (value) { 11 -> "A"; 10 -> "K";
 private fun handTotal(cards: List<Int>): Int {
     var total = cards.sum()
     var aces = cards.count { it == 11 }
-    while (total > 21 && aces > 0) { total -= 10; aces-- }
+    while (total > 21 && aces > 0) { total -= 10; aces-- } // baja As de 11 a 1
     return total
 }
 
