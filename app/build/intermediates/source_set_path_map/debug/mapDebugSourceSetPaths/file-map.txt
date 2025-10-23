@@ -70,10 +70,10 @@ com.example.casinoapp-cardview-1.0.0-68 C:\Users\basti\.gradle\caches\8.13\trans
 com.example.casinoapp-material-icons-extended-release-69 C:\Users\basti\.gradle\caches\8.13\transforms\f4b5f8355b60c57db9c491b4b5d84ba3\transformed\material-icons-extended-release\res
 com.example.casinoapp-startup-runtime-1.1.1-70 C:\Users\basti\.gradle\caches\8.13\transforms\f8c6d3e8365aa40fa1c795374f434c13\transformed\startup-runtime-1.1.1\res
 com.example.casinoapp-recyclerview-1.1.0-71 C:\Users\basti\.gradle\caches\8.13\transforms\fe683fe97acc4009601402981c909063\transformed\recyclerview-1.1.0\res
-com.example.casinoapp-resValues-72 C:\Users\basti\StudioProjects\CasinoApp2\app\build\generated\res\resValues\debug
-com.example.casinoapp-updated_navigation_xml-73 C:\Users\basti\StudioProjects\CasinoApp2\app\build\generated\updated_navigation_xml\debug
-com.example.casinoapp-packageDebugResources-74 C:\Users\basti\StudioProjects\CasinoApp2\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
-com.example.casinoapp-packageDebugResources-75 C:\Users\basti\StudioProjects\CasinoApp2\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
-com.example.casinoapp-debug-76 C:\Users\basti\StudioProjects\CasinoApp2\app\build\intermediates\merged_res\debug\mergeDebugResources
-com.example.casinoapp-debug-77 C:\Users\basti\StudioProjects\CasinoApp2\app\src\debug\res
-com.example.casinoapp-main-78 C:\Users\basti\StudioProjects\CasinoApp2\app\src\main\res
+com.example.casinoapp-resValues-72 C:\Users\basti\StudioProjects\CasinoAppD\app\build\generated\res\resValues\debug
+com.example.casinoapp-updated_navigation_xml-73 C:\Users\basti\StudioProjects\CasinoAppD\app\build\generated\updated_navigation_xml\debug
+com.example.casinoapp-packageDebugResources-74 C:\Users\basti\StudioProjects\CasinoAppD\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.example.casinoapp-packageDebugResources-75 C:\Users\basti\StudioProjects\CasinoAppD\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.example.casinoapp-debug-76 C:\Users\basti\StudioProjects\CasinoAppD\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.example.casinoapp-debug-77 C:\Users\basti\StudioProjects\CasinoAppD\app\src\debug\res
+com.example.casinoapp-main-78 C:\Users\basti\StudioProjects\CasinoAppD\app\src\main\res

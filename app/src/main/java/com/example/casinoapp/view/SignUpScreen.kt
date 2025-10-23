@@ -1,5 +1,13 @@
 package com.example.casinoapp.view
 
+// IMPORTS FALTANTES (DEBES AGREGAR LOS ARCHIVOS)
+import com.example.casinoapp.ui.common.PasswordChecklistRow
+import com.example.casinoapp.ui.common.PasswordStrengthBar
+import com.example.casinoapp.ui.common.BouncyPrimaryButton
+// IMPORTS CORREGIDOS (MOVIDOS A UIKit.kt)
+import com.example.casinoapp.ui.common.CasinoBackground
+import com.example.casinoapp.ui.common.Twinkles
+
 import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -113,8 +121,8 @@ fun SignUpScreen(
                 .padding(padding),
             contentAlignment = Alignment.Center
         ) {
-            // Fondo animado coherente con Login
-            SignUpBackground()
+            // Fondo animado coherente con Login (CORREGIDO)
+            CasinoBackground()
 
             // Scroll para pantallas pequeñas
             val scrollState = rememberScrollState()
@@ -325,7 +333,3 @@ fun SignUpScreen(
         )
     }
 }
-
-/* ----------------------- Helpers visuales (reutilizados) ----------------------- */
-// PasswordChecklistRow, RequirementRow, PasswordStrengthBar, BouncyPrimaryButton,
-// SignUpBackground y Twinkles se mantienen con comentarios breves en sus definiciones.

@@ -1,5 +1,13 @@
 package com.example.casinoapp.view
 
+// LOS IMPORTS FALTANTES (DEBES AGREGAR LOS ARCHIVOS)
+import com.example.casinoapp.ui.common.BouncyButton
+import com.example.casinoapp.ui.common.ImageLogo
+import com.example.casinoapp.ui.common.RouletteProgress
+// IMPORTS CORREGIDOS (MOVIDOS A UIKit.kt)
+import com.example.casinoapp.ui.common.Twinkles
+import com.example.casinoapp.ui.common.CasinoBackground
+
 import android.app.Application
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -115,7 +123,7 @@ fun LoginScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            // Fondo con Ken Burns + overlay oscuro
+            // Fondo con Ken Burns + overlay oscuro (AHORA ES PÚBLICO)
             CasinoBackground()
 
             Column(
@@ -124,7 +132,7 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Logo con “twinkles” de fondo
+                // Logo con “twinkles” de fondo (AHORA ES PÚBLICO)
                 Box(contentAlignment = Alignment.Center) {
                     Twinkles(Modifier.size(300.dp), count = 10)
                     ImageLogo(Modifier.padding(top = 4.dp))
@@ -303,58 +311,3 @@ fun LoginScreen(
         if (state.email != null) onLogin(user, pass)
     }
 }
-
-/* ===================== Fondo y piezas decorativas (coherente Home) ===================== */
-
-@Composable
-private fun CasinoBackground() {
-    // Efecto Ken Burns (zoom/pan suave y cíclico)
-    val t = rememberInfiniteTransition(label = "kenburns")
-    val scale by t.animateFloat(
-        initialValue = 1.15f, targetValue = 1.30f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
-    val offsetX by t.animateFloat(
-        initialValue = -30f, targetValue = 30f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetX"
-    )
-    val offsetY by t.animateFloat(
-        initialValue = 10f, targetValue = -10f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetY"
-    )
-
-    Box(Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.ruleta),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
-                }
-        )
-        // Overlay oscuro para legibilidad de la tarjeta
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.60f),
-                            Color.Black.copy(alpha = 0.40f),
-                            Color.Black.copy(alpha = 0.60f)
-                        )
-                    )
-                )
-        )
-    }
-}
-
-

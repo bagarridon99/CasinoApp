@@ -41,8 +41,10 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 import com.example.casinoapp.notification.NotifyHelper
+// IMPORTS CORREGIDOS (MOVIDOS A UIKit.kt)
 import com.example.casinoapp.ui.common.GlassCard
-
+import com.example.casinoapp.ui.common.CasinoBackground
+import com.example.casinoapp.ui.common.Twinkles
 
 
 /* ---------------------------------- NAV ---------------------------------- */
@@ -101,7 +103,8 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Box(Modifier.fillMaxSize()) {
-            CasinoBackgroundHome()
+            // FONDO CORREGIDO
+            CasinoBackground()
 
             val contentModifier = Modifier
                 .fillMaxSize()
@@ -386,52 +389,7 @@ private fun DashboardSection(
 
 /* ------------------ BACKGROUND + HEADER (coherente login) ------------------ */
 
-@Composable
-private fun CasinoBackgroundHome() {
-    val t = rememberInfiniteTransition(label = "kenburnsHome")
-    val scale by t.animateFloat(
-        initialValue = 1.10f, targetValue = 1.22f,
-        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale"
-    )
-    val offsetX by t.animateFloat(
-        initialValue = -24f, targetValue = 24f,
-        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetX"
-    )
-    val offsetY by t.animateFloat(
-        initialValue = 8f, targetValue = -8f,
-        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "offsetY"
-    )
-
-    Box(Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.ruleta),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer {
-                    scaleX = scale; scaleY = scale
-                    translationX = offsetX; translationY = offsetY
-                }
-        )
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.62f),
-                            Color.Black.copy(alpha = 0.44f),
-                            Color.Black.copy(alpha = 0.62f)
-                        )
-                    )
-                )
-        )
-    }
-}
+// LA FUNCIÓN 'CasinoBackgroundHome' FUE ELIMINADA DE AQUÍ
 
 @Composable
 private fun HomeHeader() {
@@ -874,41 +832,4 @@ private fun formatHMS(ms: Long): String {
     val m = (totalSec % 3600) / 60
     val s = totalSec % 60
     return "%02d:%02d:%02d".format(h, m, s)
-}
-
-/* ---- Twinkles ---- */
-@Composable
-private fun Twinkles(modifier: Modifier = Modifier, count: Int = 8) {
-    val t = rememberInfiniteTransition(label = "twk")
-    val delays = remember { List(count) { 150 * it } }
-    val anims = delays.mapIndexed { i, d ->
-        t.animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1400 + d, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "a$i"
-        )
-    }
-    Box(
-        modifier = modifier.drawBehind {
-            val w = size.width; val h = size.height
-            val points = listOf(
-                Offset(w*0.18f, h*0.30f), Offset(w*0.82f, h*0.32f),
-                Offset(w*0.12f, h*0.55f), Offset(w*0.88f, h*0.58f),
-                Offset(w*0.35f, h*0.18f), Offset(w*0.65f, h*0.16f),
-                Offset(w*0.25f, h*0.72f), Offset(w*0.75f, h*0.74f),
-                Offset(w*0.50f, h*0.10f), Offset(w*0.50f, h*0.82f)
-            ).take(count)
-
-            points.forEachIndexed { i, p ->
-                drawCircle(
-                    color = Color(0xFFFFD54F).copy(alpha = anims[i].value * 0.85f),
-                    radius = 5f,
-                    center = p
-                )
-            }
-        }
-    )
 }

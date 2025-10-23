@@ -1,46 +1,46 @@
 [
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_slots_background.jpg.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\slots_background.jpg"
+        "merged": "com.example.casinoapp-debug-76:/color_ic_launcher_background.xml.flat",
+        "source": "com.example.casinoapp-main-78:/color/ic_launcher_background.xml"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_casino_background.jpg.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\casino_background.jpg"
+        "merged": "com.example.casinoapp-debug-76:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/ic_launcher_foreground.xml"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\color_ic_launcher_background.xml.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\color\\ic_launcher_background.xml"
+        "merged": "com.example.casinoapp-debug-76:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.example.casinoapp-main-78:/mipmap-anydpi-v26/ic_launcher_round.xml"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_ic_launcher_foreground.xml.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\ic_launcher_foreground.xml"
+        "merged": "com.example.casinoapp-debug-76:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.example.casinoapp-main-78:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
+        "merged": "com.example.casinoapp-debug-76:/drawable_blackjack_background.jpg.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/blackjack_background.jpg"
     },
     {
         "merged": "com.example.casinoapp-debug-76:/drawable_ic_stat_casino.xml.flat",
         "source": "com.example.casinoapp-main-78:/drawable/ic_stat_casino.xml"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\mipmap-anydpi-v26\\ic_launcher.xml"
+        "merged": "com.example.casinoapp-debug-76:/drawable_roulette_background.jpg.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/roulette_background.jpg"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_blackjack_background.jpg.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\blackjack_background.jpg"
+        "merged": "com.example.casinoapp-debug-76:/drawable_ruleta.jpg.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/ruleta.jpg"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_roulette_background.jpg.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\roulette_background.jpg"
+        "merged": "com.example.casinoapp-debug-76:/drawable_slots_background.jpg.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/slots_background.jpg"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_ruleta.jpg.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\ruleta.jpg"
+        "merged": "com.example.casinoapp-debug-76:/drawable_casino_background.jpg.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/casino_background.jpg"
     },
     {
-        "merged": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-debug-76:\\drawable_logo_casino.png.flat",
-        "source": "C:\\Users\\basti\\.gradle\\daemon\\8.13\\com.example.casinoapp-main-78:\\drawable\\logo_casino.png"
+        "merged": "com.example.casinoapp-debug-76:/drawable_logo_casino.png.flat",
+        "source": "com.example.casinoapp-main-78:/drawable/logo_casino.png"
     }
 ]
