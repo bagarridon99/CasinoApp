@@ -1,0 +1,80 @@
+# --- Gradle cache y salidas ---
+.gradle/
+**/build/
+**/out/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- Config local de Android Studio/SDK ---
+local.properties
+
+# --- Android Studio / IntelliJ ---
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# --- NDK / CMake / External Native ---
+.cxx/
+.externalNativeBuild/
+
+# --- Capturas / perf / reports locales ---
+captures/
+android-profile/
+hs_err_pid*
+heapdump.hprof
+
+# --- Generados por código/herramientas ---
+**/generated/
+
+# --- Artefactos de paquetes ---
+*.apk
+*.ap_
+*.aab
+*.aar
+
+# --- Logs / SO ---
+*.log
+.DS_Store
+Thumbs.db
+
+# --- Firmas (¡nunca subas tus llaves!) ---
+*.keystore
+*.jks
+*.pem
+*.p12
+
+# --- Compose (si activas métricas) ---
+compose_metrics/
+compose_reports/
+
+# --- Kotlin/Java ---
+*.class
+.kotlin/
+
+# --- Otros temporales ---
+*.swp
+*.tmp
+
+# Nota:
+# NO ignores:
+#  - gradle/wrapper/** (se versiona)
+#  - gradlew, gradlew.bat (se versionan)
+#  - app/src/**, AndroidManifest.xml, res/** (se versionan)
+#  - build.gradle(.kts) y settings.gradle(.kts) (se versionan)
+#  - proguard-rules.pro (se versiona)
+# Si usas Firebase, normalmente google-services.json SÍ se versiona.
+
+# KSP / kapt
+**/ksp*/
+**/kspCaches/
+**/kapt*/
+
+# Lint / reports / tests locales
+**/lint-results*.xml
+**/lint/
+**/reports/
+**/test-results/
+
+# Safe Args / Navigation generado
+**/navigation.json
+

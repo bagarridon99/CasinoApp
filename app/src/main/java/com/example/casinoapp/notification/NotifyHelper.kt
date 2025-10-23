@@ -13,17 +13,30 @@ import androidx.core.app.NotificationCompat
 import com.example.casinoapp.MainActivity
 import com.example.casinoapp.R
 
+/**
+ * Utilidad centralizada para:
+ * - Crear canales de notificación (Android 8+).
+ * - Construir y enviar notificaciones para distintos casos (bono diario, racha, bono por ciudad).
+ * - Generar PendingIntent que abre la app con una "ruta" (nav_target) específica.
+ */
 object NotifyHelper {
 
     private const val TAG = "NotifyHelper"
 
+    // IDs de canales para agrupar notificaciones
     const val CH_BONUS = "ch_bonus"
     const val CH_GENERAL = "ch_general"
 
+    /**
+     * Crea/asegura los canales de notificación requeridos (Android 8+).
+     * - CH_BONUS: para bonos y recompensas.
+     * - CH_GENERAL: para avisos generales (progreso, rachas).
+     */
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        // Canal de Bonos
         val bonus = NotificationChannel(
             CH_BONUS,
             "Bonos y Recompensas",
@@ -34,6 +47,7 @@ object NotifyHelper {
             enableVibration(true)
         }
 
+        // Canal General
         val general = NotificationChannel(
             CH_GENERAL,
             "General",
@@ -48,7 +62,10 @@ object NotifyHelper {
         nm.createNotificationChannel(general)
     }
 
-    /** PendingIntent que abre MainActivity con un destino interno */
+    /**
+     * Construye un PendingIntent que abre MainActivity con una "ruta" (navTarget)
+     * para que la UI navegue a la sección correspondiente (ej: "BONO_DIARIO").
+     */
     private fun pendingToHome(
         context: Context,
         navTarget: String,
@@ -56,13 +73,15 @@ object NotifyHelper {
     ): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("nav_target", navTarget)
+            putExtra("nav_target", navTarget) // pista para la navegación interna
         }
 
+        // TaskStackBuilder asegura la back stack correcta al abrir desde notificación
         val builder = TaskStackBuilder.create(context).apply {
             addNextIntentWithParentStack(intent)
         }
 
+        // FLAG_IMMUTABLE en 23+ por seguridad; UPDATE_CURRENT para reutilizar el mismo PI
         return if (Build.VERSION.SDK_INT >= 23) {
             builder.getPendingIntent(
                 requestCode,
@@ -76,12 +95,17 @@ object NotifyHelper {
         }
     }
 
-    /** 1) 🎁 Bono diario listo (+20%) — envío inmediato */
+    /**
+     * Envía una notificación de "Bono diario".
+     * - Canal: CH_BONUS
+     * - Acción: abre la app en la sección para reclamar el bono.
+     */
     fun sendBonoDiarioNow(context: Context) {
         ensureChannels(context)
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val goHome = pendingToHome(context, "BONO_DIARIO", 1001)
 
+        // Acción secundaria en la notificación: botón "Ir a reclamar"
         val action = if (Build.VERSION.SDK_INT >= 23)
             PendingIntent.getActivity(
                 context, 1002,
@@ -95,21 +119,24 @@ object NotifyHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
 
+        // Construcción de la notificación
         val notif = NotificationCompat.Builder(context, CH_BONUS)
-            // usa un icono seguro del proyecto; si tu vector propio falla, usa ic_dialog_info del sistema
-            .setSmallIcon(R.drawable.ic_stat_casino)
-            .setContentTitle("🎁 Bono diario listo")
+            .setSmallIcon(R.drawable.ic_stat_casino)      // icono del proyecto
+            .setContentTitle("🎁 Bono diario listo")       // título visible
             .setContentText("Tienes +20% en tu próximo depósito. ¡Reclámalo ahora!")
-            .setContentIntent(goHome)             // admite non-null
-            .setAutoCancel(true)
-            .addAction(0, "Ir a reclamar", action) // action requiere non-null
+            .setContentIntent(goHome)                      // abre app al tocar la notificación
+            .setAutoCancel(true)                           // se cierra al tocar
+            .addAction(0, "Ir a reclamar", action)         // acción de botón
             .build()
 
         Log.d(TAG, "Notificando BONO_DIARIO (id=2001)")
-        nm.notify(2001, notif)
+        nm.notify(2001, notif) // ID único para esta notificación
     }
 
-    /** 2) 🔥 Racha activa — por ejemplo: “te faltan N partidas” */
+    /**
+     * Notificación para recordar una racha activa de partidas.
+     * - Canal: CH_GENERAL
+     */
     fun sendRachaNow(context: Context, restantes: Int) {
         ensureChannels(context)
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -127,7 +154,10 @@ object NotifyHelper {
         nm.notify(2002, notif)
     }
 
-    /** 3) 📍 Bono por ciudad */
+    /**
+     * Notificación para bono por ciudad detectada (geolocalización).
+     * - Canal: CH_BONUS
+     */
     fun sendCityBonusNow(context: Context, city: String) {
         ensureChannels(context)
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -2,33 +2,29 @@ package com.example.casinoapp.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 
-/* ===== Brand palette (morado–dorado con acentos azules) ===== */
-private val Purple          = Color(0xFF6953F1)
-private val PurpleDark      = Color(0xFF4F3CCB)
-private val PurpleContainer = Color(0xFFE6DEFF)
+/* ===== Paleta base (morado–dorado con acento azul) ===== */
+// Colores de marca (claro)
+private val Purple            = Color(0xFF6953F1)
+private val PurpleDark        = Color(0xFF4F3CCB)
+private val PurpleContainer   = Color(0xFFE6DEFF)
 private val OnPurpleContainer = Color(0xFF21174B)
 
 private val BlueAccent          = Color(0xFF5AB8FF)
 private val BlueAccentContainer = Color(0xFFD7ECFF)
 private val OnBlueContainer     = Color(0xFF00344F)
 
-private val Gold          = Color(0xFFFFC107)
-private val GoldContainer = Color(0xFFFFE08A)
+private val Gold            = Color(0xFFFFC107)
+private val GoldContainer   = Color(0xFFFFE08A)
 private val OnGoldContainer = Color(0xFF3D2F00)
 
-/* ===== LIGHT ===== */
+/* ===== Esquema LIGHT ===== */
 private val LightColors = lightColorScheme(
     primary = Purple,
     onPrimary = Color.White,
@@ -66,7 +62,7 @@ private val LightColors = lightColorScheme(
     onErrorContainer = Color(0xFF410002)
 )
 
-/* ===== DARK ===== */
+/* ===== Esquema DARK ===== */
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFBEB4FF),
     onPrimary = Color(0xFF281D70),
@@ -104,7 +100,7 @@ private val DarkColors = darkColorScheme(
     onErrorContainer = Color(0xFFFFDAD4)
 )
 
-/* ===== Shapes (coincide con GlassCard y chips redonditos) ===== */
+/* ===== Shapes globales (coherentes con tarjetas/chips redondeados) ===== */
 private val CasinoShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small      = RoundedCornerShape(12.dp),
@@ -113,7 +109,12 @@ private val CasinoShapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp)
 )
 
-/* ===== Theme ===== */
+/**
+ * Theme raíz de la app:
+ * - Usa Dynamic Color (Material You) en Android 12+ si está habilitado.
+ * - Fallback al esquema light/dark definido arriba.
+ * - Inyecta tipografía y shapes personalizados.
+ */
 @Composable
 fun CasinoAppTheme(
     useDarkTheme: Boolean = isSystemInDarkTheme(),
@@ -122,6 +123,7 @@ fun CasinoAppTheme(
 ) {
     val context = LocalContext.current
 
+    // Selecciona el esquema de color según dynamicColor y el modo (oscuro/claro)
     val colorScheme =
         if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (useDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -129,6 +131,7 @@ fun CasinoAppTheme(
             if (useDarkTheme) DarkColors else LightColors
         }
 
+    // Inyecta el tema Material3 en el árbol de Composables
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,

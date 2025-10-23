@@ -6,6 +6,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+/**
+ * Tipografía global de la app (Material 3).
+ * Puedes extender con más estilos si los necesitas (titleMedium, bodySmall, etc.).
+ */
 val Typography = Typography(
     // Para titulares hero (Login/Home Header)
     displaySmall = TextStyle(

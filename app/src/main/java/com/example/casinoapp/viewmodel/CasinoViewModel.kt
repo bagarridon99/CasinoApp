@@ -15,18 +15,27 @@ import kotlinx.coroutines.flow.firstOrNull // <--- AÑADIDO
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
+// Constantes de dominio: saldo inicial, límite de historial y bono diario.
 private const val START_BALANCE = 1000
 private const val HISTORY_LIMIT = 10
 private const val BONUS_AMOUNT = 100 // Constante para el bono
 
+/**
+ * ViewModel principal del “casino”.
+ * - Carga datos del usuario desde Room usando el email de SessionManager.
+ * - Expone un CasinoUiState observable (mutableStateOf) para Compose.
+ * - Llama a un CasinoRepository (aquí, implementación en memoria) para la lógica de juegos.
+ * - Persiste cambios de balance en Room.
+ */
 class CasinoViewModel(
     app: Application
 ) : AndroidViewModel(app) {
 
+    // Implementación concreta del repositorio (in-memory, sin backend)
     private val repo: CasinoRepository = InMemoryCasinoRepository()
     private val userDao = AppDatabase.get(app).userDao()
 
-    private var currentUserId: Long = 0L
+    private var currentUserId: Long = 0L // ID del usuario actual para sincronizar balance
     var uiState by mutableStateOf(CasinoUiState())
         private set
 
@@ -34,6 +43,11 @@ class CasinoViewModel(
         loadUserData()
     }
 
+    /**
+     * Carga el usuario activo según SessionManager.emailFlow:
+     * - Si no hay sesión, resetea estado (isLoggedIn=false).
+     * - Si hay email, consulta Room por el usuario y pobla CasinoUiState.
+     */
     fun loadUserData() = viewModelScope.launch {
         val email = SessionManager.emailFlow(getApplication()).firstOrNull()
 
@@ -62,9 +76,16 @@ class CasinoViewModel(
             balance = user.balance,
             statusMessage = "¡Bienvenido, ${user.username}!" // Mensaje de bienvenida real
         )
+        // (Opcional) Podrías guardar user.id en currentUserId si lo necesitas luego.
+        // currentUserId = user.id
     }
 
     // Renombramos a "logout" para que sea llamado desde la UI
+    /**
+     * Cierra sesión:
+     * - Limpia SessionManager (DataStore).
+     * - Resetea el estado a no logueado.
+     */
     fun logout() = viewModelScope.launch {
         SessionManager.clear(getApplication()) // Limpia el DataStore
         uiState = CasinoUiState(statusMessage = "Sesión cerrada.", isLoggedIn = false)
@@ -75,15 +96,23 @@ class CasinoViewModel(
         uiState = CasinoUiState(statusMessage = "Sesión cerrada.", isLoggedIn = false)
     }
 
-
+    /** Borra el mensaje de estado para no repetirlo en la UI. */
     fun consumeMessage() {
         uiState = uiState.copy(statusMessage = null)
     }
 
+    /** Helper para publicar un mensaje a la UI (snackbar/banner). */
     private fun showMessage(msg: String) {
         uiState = uiState.copy(statusMessage = msg)
     }
 
+    /**
+     * Aplica un cambio de saldo y actualiza historial/mensaje:
+     * - balance: asegura que nunca baje de 0.
+     * - history: mantiene solo los últimos HISTORY_LIMIT registros.
+     * - statusMessage: feedback corto de la acción.
+     * - Persiste balance nuevo en Room si currentUserId está seteado.
+     */
     private fun push(delta: Int, description: String) {
         val newBalance = max(0, uiState.balance + delta)
         val newHistory = (listOf(description) + uiState.history).take(HISTORY_LIMIT)
@@ -99,8 +128,10 @@ class CasinoViewModel(
         }
     }
 
+    /** Regla simple para validar montos de apuesta contra el saldo. */
     private fun canBet(amount: Int): Boolean = amount in 1..uiState.balance
 
+    /** Deposita dinero en la cuenta del jugador. */
     fun deposit(amount: Int) {
         if (amount <= 0) {
             showMessage("Monto de depósito inválido.")
@@ -109,6 +140,7 @@ class CasinoViewModel(
         push(amount, "Depósito realizado +$amount")
     }
 
+    /** Retira dinero si el monto es válido y hay saldo suficiente. */
     fun withdraw(amount: Int) {
         if (!canBet(amount)) {
             showMessage("Monto de retiro inválido o saldo insuficiente.")
@@ -118,12 +150,13 @@ class CasinoViewModel(
     }
 
     //  Función para el Bono Diario
+    /** Recompensa un bono fijo y da experiencia por lealtad. */
     fun claimDailyBonus() {
         push(BONUS_AMOUNT, "Bono diario reclamado +$BONUS_AMOUNT")
-
         addExperience(50) // 50 XP por lealtad
     }
 
+    /** Ejecuta una jugada de Ruleta y actualiza estado/experiencia. */
     fun playRoulette(betAmount: Int, bet: RouletteBet) {
         if (!canBet(betAmount)) {
             showMessage("Saldo insuficiente o apuesta inválida.")
@@ -134,10 +167,10 @@ class CasinoViewModel(
         uiState = uiState.copy(
             rouletteState = RouletteGameState(winningNumber = result.winningNumber)
         )
-
         addExperience(5)
     }
 
+    /** Ejecuta una jugada de Slots y actualiza estado/experiencia. */
     fun playSlots(bet: Int) {
         if (!canBet(bet)) {
             showMessage("Saldo insuficiente o apuesta inválida.")
@@ -146,12 +179,14 @@ class CasinoViewModel(
         val result: GameResult = repo.playSlots(bet)
         push(result.delta, result.description)
         uiState = uiState.copy(slotResults = result.slotResults)
-
         addExperience(15)
     }
 
-    private var blackjackBet = 0
+    // --- BLACKJACK ---
 
+    private var blackjackBet = 0 // Guarda la apuesta de la mano en curso
+
+    /** Inicia una mano: valida saldo y reparte 2 cartas a jugador y crupier. */
     fun startBlackjack(bet: Int) {
         if (!canBet(bet)) {
             showMessage("Saldo insuficiente o apuesta inválida.")
@@ -161,6 +196,7 @@ class CasinoViewModel(
         val playerHand = listOf(repo.drawCard(), repo.drawCard())
         val dealerHand = listOf(repo.drawCard(), repo.drawCard())
 
+        // Si es blackjack directo, terminamos el turno; si no, habilitamos acciones del jugador.
         if (handTotal(playerHand) == 21) {
             endBlackjackTurn(playerHand, dealerHand)
         } else {
@@ -175,6 +211,7 @@ class CasinoViewModel(
         }
     }
 
+    /** Acción “Hit”: añade carta y evalúa si se pasó de 21. */
     fun blackjackHit() {
         if (!uiState.blackjackState.isPlayerTurn) return
         val newHand = uiState.blackjackState.playerHand + repo.drawCard()
@@ -187,11 +224,19 @@ class CasinoViewModel(
         }
     }
 
+    /** Acción “Stand”: cede turno al crupier y cierra la mano. */
     fun blackjackStand() {
         if (!uiState.blackjackState.isPlayerTurn) return
         endBlackjackTurn(uiState.blackjackState.playerHand, uiState.blackjackState.dealerHand)
     }
 
+    /**
+     * Cierra la mano:
+     * - El crupier roba hasta sumar 17 o más.
+     * - Compara totales y determina delta/mensaje.
+     * - Actualiza estado y da experiencia según el resultado.
+     * @param customMessage si viene, fuerza el resultado (caso “te pasaste”).
+     */
     private fun endBlackjackTurn(playerHand: List<Int>, dealerHand: List<Int>, customMessage: String? = null) {
         var currentDealerHand = dealerHand
         while (handTotal(currentDealerHand) < 17) {
@@ -236,6 +281,7 @@ class CasinoViewModel(
             addExperience(2)
         }
 
+        // Publica resultado y cierra turno del jugador
         push(delta, "Blackjack: $resultMessage")
         uiState = uiState.copy(
             blackjackState = BlackjackGameState(
@@ -247,6 +293,7 @@ class CasinoViewModel(
         )
     }
 
+    /** Suma de cartas considerando As (11) que puede bajar a 1 si se pasa de 21. */
     private fun handTotal(cards: List<Int>): Int {
         var total = cards.sum()
         var aces = cards.count { it == 11 }
@@ -258,6 +305,11 @@ class CasinoViewModel(
     }
 
     // --- función de Experiencia (XP) ---
+    /**
+     * Sube experiencia del perfil y ajusta nivel:
+     * - XP requerido por nivel: nivel * 100.
+     * - Soporta subir múltiples niveles si acumula suficiente XP.
+     */
     private fun addExperience(xpAmount: Int) {
 
         val currentProfile = uiState.profile
@@ -283,4 +335,3 @@ class CasinoViewModel(
         uiState = uiState.copy(profile = nuevoPerfil)
     }
 }
-

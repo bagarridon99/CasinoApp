@@ -1,23 +1,25 @@
 package com.example.casinoapp.data.entity
 
 import androidx.room.*
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 
+/**
+ * Entidad que representa la tabla "users" en la base de datos Room.
+ * Cada propiedad es una columna.
+ */
 @Entity(
     tableName = "users",
     indices = [
-        Index(value = ["email"], unique = true),
-        Index(value = ["username"], unique = true) // <--- AÑADIDO PARA EL USERNAME
+        Index(value = ["email"], unique = true),      // Evita duplicar emails
+        Index(value = ["username"], unique = true)    // Evita duplicar usernames
     ]
 )
 data class UserEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
-    val username: String, // <--- AÑADIDO
-    val email: String,
-    val passwordHash: String,
-    val passwordSalt: String,
-    val recoveryCode: String? = null,
-    val recoveryCodeExpiresAt: Long? = null,
-    val balance: Int
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L, // ID autoincremental.
+    val username: String,                               // Nombre visible del usuario.
+    val email: String,                                  // Email único.
+    val passwordHash: String,                           // Hash de la contraseña.
+    val passwordSalt: String,                           // Salt utilizado para el hash.
+    val recoveryCode: String? = null,                   // Código temporal para recuperación.
+    val recoveryCodeExpiresAt: Long? = null,            // Fecha de expiración del código.
+    val balance: Int                                    // Saldo disponible del usuario.
 )
