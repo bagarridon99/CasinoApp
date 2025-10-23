@@ -63,3 +63,18 @@ compose_reports/
 #  - build.gradle(.kts) y settings.gradle(.kts) (se versionan)
 #  - proguard-rules.pro (se versiona)
 # Si usas Firebase, normalmente google-services.json SÍ se versiona.
+
+# KSP / kapt
+**/ksp*/
+**/kspCaches/
+**/kapt*/
+
+# Lint / reports / tests locales
+**/lint-results*.xml
+**/lint/
+**/reports/
+**/test-results/
+
+# Safe Args / Navigation generado
+**/navigation.json
+
