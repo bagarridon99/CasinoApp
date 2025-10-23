@@ -41,6 +41,8 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 import com.example.casinoapp.notification.NotifyHelper
+import com.example.casinoapp.ui.common.GlassCard
+
 
 
 /* ---------------------------------- NAV ---------------------------------- */
@@ -446,23 +448,6 @@ private fun HomeHeader() {
     }
 }
 
-/* --------------------------------- CARDS --------------------------------- */
-
-@Composable
-private fun GlassCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        tonalElevation = 10.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-        modifier = modifier
-    ) {
-        Column(Modifier.padding(16.dp), content = content)
-    }
-}
 
 /* ----------------------------- CONTENT BLOCKS ---------------------------- */
 

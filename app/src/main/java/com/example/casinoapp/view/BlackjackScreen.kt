@@ -40,6 +40,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import androidx.compose.ui.res.painterResource
+import com.example.casinoapp.ui.common.GameHeader
+import com.example.casinoapp.ui.common.ResultBanner
+import com.example.casinoapp.ui.common.formatCLP
 
 
 /* =======================================================================
@@ -234,7 +237,7 @@ fun BlackjackScreen(
             // Banda de resultado
             item {
                 AnimatedVisibility(visible = outcomeText != null) {
-                    OutcomeBanner(text = outcomeText ?: "", positive = outcomePositive)
+                    ResultBanner(text = outcomeText ?: "", positive = outcomePositive)
                 }
             }
         }
@@ -248,20 +251,6 @@ fun BlackjackScreen(
  *  SUB-COMPONENTES
  * ======================================================================= */
 
-@Composable
-private fun GameHeader(imageRes: Int, balance: Int) {
-    Card(
-        Modifier.fillMaxWidth().height(160.dp),
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-    ) {
-        Box {
-            Image(painter = painterResource(imageRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.35f)))
-            Text("Saldo: ${formatCLP(balance)}", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomStart).padding(16.dp))
-        }
-    }
-}
 
 @Composable
 private fun CardsRow(cards: List<Int>, dealer: Boolean = false, hiddenSecond: Boolean = false) {
