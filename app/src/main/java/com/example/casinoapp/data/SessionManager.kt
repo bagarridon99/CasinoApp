@@ -2,41 +2,62 @@ package com.example.casinoapp.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Crea un DataStore llamado "session" asociado al Context.
 private val Context.dataStore by preferencesDataStore(name = "session")
 
-/**
- * Maneja el almacenamiento persistente de la sesión del usuario.
- * Utiliza DataStore en lugar de SharedPreferences (más moderno y seguro).
- */
 object SessionManager {
-    // Clave única para guardar el email del usuario logueado.
+    private val KEY_TOKEN = stringPreferencesKey("jwt_token")
+    private val KEY_USER_ID = longPreferencesKey("user_id")
     private val KEY_EMAIL = stringPreferencesKey("email")
 
     /**
-     * Guarda el email del usuario actual en el DataStore.
-     * Se usa al iniciar sesión o registrarse.
+     * Guarda toda la sesión (token, id de usuario y email).
+     * Si no quieres usar token por ahora, simplemente no llames a esta función.
+     */
+    suspend fun setSession(
+        context: Context,
+        token: String,
+        userId: Long,
+        email: String
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TOKEN] = token
+            prefs[KEY_USER_ID] = userId
+            prefs[KEY_EMAIL] = email
+        }
+    }
+
+    /**
+     * Guarda solo el email del usuario.
+     * Esta es la función que usa tu AuthViewModel: SessionManager.setEmail(...)
      */
     suspend fun setEmail(context: Context, email: String) {
-        context.dataStore.edit { it[KEY_EMAIL] = email }
+        context.dataStore.edit { prefs ->
+            prefs[KEY_EMAIL] = email
+        }
     }
 
     /**
-     * Limpia los datos de sesión (por ejemplo, al cerrar sesión).
+     * Limpia toda la sesión (logout).
      */
     suspend fun clear(context: Context) {
-        context.dataStore.edit { it.remove(KEY_EMAIL) }
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+        }
     }
 
-    /**
-     * Devuelve un Flow reactivo con el email del usuario guardado.
-     * Flow emite automáticamente los cambios (útil para observar sesión activa).
-     */
-    fun emailFlow(context: Context): Flow<String?> =
-        context.dataStore.data.map { it[KEY_EMAIL] }
+    // Flujos de lectura de la sesión
+    fun getToken(context: Context): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_TOKEN] }
+
+    fun getUserId(context: Context): Flow<Long?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_USER_ID] }
+
+    fun getEmail(context: Context): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_EMAIL] }
 }

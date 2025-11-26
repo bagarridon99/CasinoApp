@@ -2,8 +2,11 @@
 
 package com.example.casinoapp.view
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,12 +17,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.casinoapp.R
@@ -31,26 +43,31 @@ import com.example.casinoapp.ui.common.ResultBanner
 import com.example.casinoapp.ui.common.formatCLP
 import com.example.casinoapp.ui.common.RouletteWheel
 import kotlinx.coroutines.delay
-import com.example.casinoapp.ui.common.RouletteWheel
-import com.example.casinoapp.ui.common.EURO_WHEEL_ORDER
-import com.example.casinoapp.ui.common.SLOT_DEG
-import com.example.casinoapp.ui.common.angleForNumber
-import com.example.casinoapp.ui.common.forwardDelta
-import com.example.casinoapp.ui.common.norm360
 
+// --- COLORES PREMIUM RULETA ---
+private val WoodDark = Color(0xFF21110E)  // Madera caoba muy oscura
+private val WoodLight = Color(0xFF5D4037)
+private val WoodBrush = Brush.radialGradient(
+    colors = listOf(WoodLight, WoodDark, Color.Black),
+)
+private val GoldLight = Color(0xFFFFD700)
+private val GoldDark = Color(0xFFC5A000)
+private val GoldBrush = Brush.linearGradient(
+    colors = listOf(GoldDark, GoldLight, GoldDark)
+)
+private val FeltGreen = Color(0xFF0F3D0F) // Verde tapete clásico
+private val FeltBorder = Color(0xFF1B5E20)
 
-/* ------------------------------ Tipos/estado ------------------------------ */
 private enum class BetMode { Color, Numero }
 private data class Outcome(val positive: Boolean, val wonAmount: Int, val lostAmount: Int)
 
-/* -------------------------------- Pantalla -------------------------------- */
 @Composable
 fun RouletteScreen(
     uiState: CasinoUiState,
     onPlay: (Int, RouletteBet) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var betAmount by rememberSaveable { mutableStateOf("50") }
+    var betAmount by rememberSaveable { mutableStateOf("100") }
     var betMode by rememberSaveable { mutableStateOf(BetMode.Color) }
     var selectedBet by remember { mutableStateOf<RouletteBet>(RouletteBet.ByColor(RouletteColor.ROJO)) }
 
@@ -67,7 +84,7 @@ fun RouletteScreen(
 
     val winningNumber = uiState.rouletteState.winningNumber
 
-    // Cuando hay número ganador, calcula outcome
+    // Lógica de resultado
     LaunchedEffect(winningNumber) {
         if (winningNumber != null && amountInt > 0) {
             val payoutTotal = calcPayout(amountInt, selectedBet, winningNumber)
@@ -80,136 +97,220 @@ fun RouletteScreen(
         }
     }
 
-    // Oculta banner solo
     LaunchedEffect(showOutcome) {
         if (showOutcome) {
-            delay(4000)
+            delay(5000)
             showOutcome = false
         }
     }
 
-    Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant)) {
+    Box(modifier = modifier.background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(bottom = 16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
+            // 1. Header
             item {
                 GameHeader(imageRes = R.drawable.roulette_background, balance = uiState.balance)
             }
 
+            // 2. LA RULETA "PREMIUM" (Diseño de Copa)
             item {
-                RouletteWheel(
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(300.dp),
-                    size = 260.dp,
-                    targetNumber = winningNumber,
-                    spinTrigger = spinCount
-                )
+                        .size(340.dp) // Tamaño generoso
+                ) {
+                    // A. Base de Madera (Sombra profunda)
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .shadow(20.dp, CircleShape)
+                            .background(WoodBrush, CircleShape)
+                            .border(8.dp, Color(0xFF150B09), CircleShape)
+                    )
+
+                    // B. Anillo Dorado (Biselado)
+                    Box(
+                        Modifier
+                            .fillMaxSize(0.92f) // Un poco más pequeño que la madera
+                            .background(Color.Transparent, CircleShape)
+                            .border(6.dp, GoldBrush, CircleShape)
+                    )
+
+                    // C. Fondo Negro interior (Donde gira la rueda)
+                    Box(
+                        Modifier
+                            .fillMaxSize(0.88f)
+                            .background(Color.Black, CircleShape)
+                    )
+
+                    // D. La Rueda Giratoria (Tu componente)
+                    // Le damos un poco de padding para que no toque el borde dorado
+                    RouletteWheel(
+                        modifier = Modifier
+                            .fillMaxSize(0.85f),
+                        size = 280.dp,
+                        targetNumber = winningNumber,
+                        spinTrigger = spinCount
+                    )
+
+                    // E. El Puntero (Flecha Dorada física)
+                    // Lo dibujamos con Canvas para que sea un triángulo perfecto
+                    Canvas(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .size(30.dp)
+                            .offset(y = 12.dp) // Que baje un poco sobre la rueda
+                    ) {
+                        val path = Path().apply {
+                            moveTo(size.width / 2f, size.height) // Punta abajo
+                            lineTo(size.width, 0f)              // Derecha arriba
+                            lineTo(0f, 0f)                      // Izquierda arriba
+                            close()
+                        }
+                        drawPath(path, color = GoldLight)
+                        drawPath(path, brush = GoldBrush) // Gradiente encima
+                    }
+
+                    // F. Decoración central (Tapa del eje)
+                    Box(
+                        Modifier
+                            .size(24.dp)
+                            .background(GoldBrush, CircleShape)
+                            .border(1.dp, Color.Black.copy(0.5f), CircleShape)
+                            .shadow(4.dp, CircleShape)
+                    )
+                }
             }
 
-            // Etiqueta con el número salido + color (si hay)
+            // 3. Resultado Anterior
             item {
-                WinningNumberLabel(
-                    number = winningNumber
-                )
+                AnimatedVisibility(visible = winningNumber != null) {
+                    WinningNumberLabel(winningNumber)
+                }
             }
 
+            // 4. Tablero de Apuestas (Tapete)
             item {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)
-                    )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = FeltGreen)
                 ) {
                     Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Monto
-                        OutlinedTextField(
-                            value = betAmount,
-                            onValueChange = { betAmount = it.filter(Char::isDigit) },
-                            label = { Text("Monto de la apuesta") },
-                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                        // Título del tablero
+                        Text(
+                            "HAGA SU APUESTA",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color(0xFFFFD700).copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
 
-                        // Chips inline
-                        val presets = listOf(50, 100, 200, 500)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            presets.forEach { v ->
-                                AssistChip(onClick = { betAmount = v.toString() }, label = { Text("\$${v}") })
+                        // Selector de Modo (Tabs personalizados)
+                        TabRow(
+                            selectedTabIndex = betMode.ordinal,
+                            containerColor = Color.Transparent,
+                            contentColor = GoldLight,
+                            divider = {},
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    Modifier.tabIndicatorOffset(tabPositions[betMode.ordinal]),
+                                    color = GoldLight,
+                                    height = 3.dp
+                                )
                             }
-                            AssistChip(
-                                onClick = { betAmount = uiState.balance.coerceAtLeast(1).toString() },
-                                label = { Text("MAX") }
-                            )
-                        }
-
-                        // Tabs (Color / Número)
-                        TabRow(selectedTabIndex = betMode.ordinal) {
+                        ) {
                             BetMode.values().forEach { mode ->
                                 Tab(
                                     selected = betMode == mode,
-                                    onClick = {
-                                        betMode = mode
-                                        selectedBet =
-                                            if (mode == BetMode.Color) RouletteBet.ByColor(RouletteColor.ROJO)
-                                            else RouletteBet.ByNumber(1)
-                                    },
-                                    text = { Text(if (mode == BetMode.Color) "Color" else "Número") }
+                                    onClick = { betMode = mode },
+                                    text = {
+                                        Text(
+                                            if (mode == BetMode.Color) "COLOR" else "NÚMERO",
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
                                 )
                             }
                         }
 
-                        // Contenido según modo
-                        when (betMode) {
-                            BetMode.Color -> ColorBetSelectorBlock(
-                                current = selectedBet,
-                                onBetSelected = { selectedBet = it }
+                        // Input de Dinero
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = betAmount,
+                                onValueChange = { betAmount = it.filter(Char::isDigit) },
+                                label = { Text("Monto", color = Color.LightGray) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = GoldLight,
+                                    unfocusedBorderColor = Color.Gray,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
-                            BetMode.Numero -> NumberBetSelectorBlock(
-                                current = selectedBet,
-                                onBetSelected = { selectedBet = it }
-                            )
+                            // Chips Rápidos
+                            ChipButton("100") { betAmount = "100" }
+                            Spacer(Modifier.width(4.dp))
+                            ChipButton("MAX") { betAmount = uiState.balance.toString() }
                         }
 
-                        // Botón jugar
+                        // Área de Selección (Color o Números)
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFF0A290A), RoundedCornerShape(8.dp)) // Verde más oscuro
+                                .border(1.dp, Color(0xFF2E7D32), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            when (betMode) {
+                                BetMode.Color -> ColorBetSelector(selectedBet) { selectedBet = it }
+                                BetMode.Numero -> NumberBetSelector(selectedBet) { selectedBet = it }
+                            }
+                        }
+
+                        // Botón JUGAR
                         Button(
-                            onClick = {
-                                onPlay(amountInt, selectedBet) // VM decide el número ganador
-                                spinCount += 1                 // dispara animación
-                            },
+                            onClick = { onPlay(amountInt, selectedBet); spinCount += 1 },
                             enabled = canBet,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
-                        ) { Text("Jugar ruleta") }
+                                .height(56.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = GoldDark,
+                                disabledContainerColor = Color.DarkGray
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(6.dp)
+                        ) {
+                            Text("GIRAR", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
 
-                        // Pagos
                         PayoutLegendBlock()
                     }
                 }
             }
 
-            // Banner con monto + número salido
+            // 5. Banner final
             item {
-                if (showOutcome && winningNumber != null) {
-                    val colorName = rouletteColorName(winningNumber)
+                AnimatedVisibility(visible = showOutcome && winningNumber != null) {
                     ResultBanner(
                         text = if (lastOutcome?.positive == true)
-                            "Salió $winningNumber ($colorName) — ¡Ganaste ${formatCLP(lastOutcome?.wonAmount ?: 0)}!"
-                        else
-                            "Salió $winningNumber ($colorName) — Perdiste ${formatCLP(lastOutcome?.lostAmount ?: 0)}",
+                            "¡GANASTE ${formatCLP(lastOutcome!!.wonAmount)}!"
+                        else "PERDISTE ${formatCLP(lastOutcome!!.lostAmount)}",
                         positive = lastOutcome?.positive == true
                     )
                 }
@@ -218,150 +319,140 @@ fun RouletteScreen(
     }
 }
 
-/* ------------------------- Selector de Color (nombre único) ------------------------- */
+// --- SUB-COMPONENTES ---
+
 @Composable
-private fun ColorBetSelectorBlock(
-    current: RouletteBet,
-    onBetSelected: (RouletteBet.ByColor) -> Unit
-) {
-    val selected = (current as? RouletteBet.ByColor)?.color
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RouletteColor.values().forEach { color ->
-            val selectedBorder =
-                if (selected == color) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-            OutlinedButton(
-                onClick = { onBetSelected(RouletteBet.ByColor(color)) },
-                modifier = Modifier.weight(1f),
-                border = selectedBorder
-            ) { Text(color.label) }
+private fun ChipButton(text: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = GoldDark,
+        border = BorderStroke(1.dp, Color.White.copy(0.5f)),
+        modifier = Modifier.size(48.dp),
+        shadowElevation = 4.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         }
     }
 }
 
-/* ------------------------- Selector de Número (nombre único) ------------------------ */
 @Composable
-private fun NumberBetSelectorBlock(
-    current: RouletteBet,
-    onBetSelected: (RouletteBet.ByNumber) -> Unit
-) {
-    val selectedNumber = (current as? RouletteBet.ByNumber)?.number
-    val numbers = (0..36).toList()
-
-    Text("Selecciona un número", style = MaterialTheme.typography.titleMedium)
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 48.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 220.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+private fun ColorBetSelector(current: RouletteBet, onSelect: (RouletteBet.ByColor) -> Unit) {
+    val selected = (current as? RouletteBet.ByColor)?.color
+    Row(
+        Modifier.fillMaxWidth().height(80.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(numbers) { number ->
+        listOf(RouletteColor.ROJO, RouletteColor.NEGRO).forEach { color ->
+            val isSelected = selected == color
+            val bg = if (color == RouletteColor.ROJO) Color(0xFFB71C1C) else Color.Black
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .shadow(if(isSelected) 8.dp else 2.dp, RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bg)
+                    .border(if (isSelected) 3.dp else 0.dp, GoldLight, RoundedCornerShape(8.dp))
+                    .clickable { onSelect(RouletteBet.ByColor(color)) },
+                contentAlignment = Alignment.Center
+            ) {
+                // Forma de diamante para decorar
+                Canvas(modifier = Modifier.size(20.dp)) {
+                    rotate(45f) {
+                        drawRect(color = Color.White.copy(0.2f))
+                    }
+                }
+                Text(color.label.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NumberBetSelector(current: RouletteBet, onSelect: (RouletteBet.ByNumber) -> Unit) {
+    val selectedNumber = (current as? RouletteBet.ByNumber)?.number
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 44.dp),
+        modifier = Modifier.height(220.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items((0..36).toList()) { number ->
             val color = getRouletteNumberColor(number)
             val isSelected = selectedNumber == number
+
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .clip(CircleShape)
-                    .background(if (isSelected) MaterialTheme.colorScheme.primary else color)
-                    .clickable { onBetSelected(RouletteBet.ByNumber(number)) },
+                    .shadow(2.dp, RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isSelected) GoldLight else color)
+                    .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(4.dp))
+                    .clickable { onSelect(RouletteBet.ByNumber(number)) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    number.toString(),
-                    color = Color.White,
-                    fontSize = 14.sp
+                    "$number",
+                    color = if (isSelected) Color.Black else Color.White,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
     }
 }
 
-/* ------------------------------ Número + color ----------------------------- */
 @Composable
 private fun WinningNumberLabel(number: Int?) {
-    if (number == null) {
-        Card(
-            Modifier
-                .fillMaxWidth()
-                .height(90.dp),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("¡Haz tu apuesta!", style = MaterialTheme.typography.titleMedium)
-            }
-        }
-    } else {
+    if (number != null) {
         val color = getRouletteNumberColor(number)
-        val name = rouletteColorName(number)
-        Card(
-            Modifier
-                .fillMaxWidth()
-                .height(90.dp),
-            shape = RoundedCornerShape(20.dp)
+        Surface(
+            color = Color.Black.copy(0.8f),
+            shape = RoundedCornerShape(50),
+            border = BorderStroke(1.dp, GoldDark),
+            modifier = Modifier.padding(vertical = 8.dp)
         ) {
             Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
+                Text("RESULTADO: ", color = GoldLight, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(12.dp))
                 Box(
-                    Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(color),
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(color, CircleShape)
+                        .border(1.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "$number",
-                        color = Color.White,
-                        fontSize = 18.sp
-                    )
+                    Text("$number", color = Color.White, fontWeight = FontWeight.Bold)
                 }
-                Text(
-                    text = "Salió $number ($name)",
-                    style = MaterialTheme.typography.titleMedium
-                )
             }
         }
     }
 }
 
-/* ------------------------------- Leyenda pagos ---------------------------- */
 @Composable
 private fun PayoutLegendBlock() {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text("Pagos:", style = MaterialTheme.typography.bodySmall)
-        Text("• Color (Rojo/Negro) 1:1", style = MaterialTheme.typography.bodySmall)
-        Text("• Verde 17:1", style = MaterialTheme.typography.bodySmall)
-        Text("• Número exacto 35:1", style = MaterialTheme.typography.bodySmall)
+    Row(
+        Modifier.fillMaxWidth().padding(top=8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("Color pago 1:1", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(0.5f))
+        Text("Número pago 35:1", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(0.5f))
     }
 }
 
-/* --------------------------------- Helpers -------------------------------- */
-private fun getRouletteNumberColor(number: Int): Color =
-    when {
-        number == 0 -> Color(0xFF008000) // verde
-        number in setOf(
-            1, 3, 5, 7, 9, 12, 14, 16, 18,
-            19, 21, 23, 25, 27, 30, 32, 34, 36
-        ) -> Color(0xFFB71C1C) // rojo
-        else -> Color.Black
-    }
+// --- LOGICA ---
+private fun getRouletteNumberColor(number: Int): Color = when {
+    number == 0 -> Color(0xFF006400) // Verde
+    number in setOf(1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36) -> Color(0xFFB71C1C) // Rojo
+    else -> Color.Black // Negro
+}
 
-private fun rouletteColorName(number: Int): String =
-    when {
-        number == 0 -> "Verde"
-        number in setOf(
-            1, 3, 5, 7, 9, 12, 14, 16, 18,
-            19, 21, 23, 25, 27, 30, 32, 34, 36
-        ) -> "Rojo"
-        else -> "Negro"
-    }
-
-/** Total a pagar (apuesta + ganancia) si gana; 0 si pierde. */
 private fun calcPayout(amount: Int, bet: RouletteBet, winningNumber: Int): Int {
     return when (bet) {
         is RouletteBet.ByColor -> {
@@ -370,7 +461,7 @@ private fun calcPayout(amount: Int, bet: RouletteBet, winningNumber: Int): Int {
                 RouletteColor.NEGRO -> winningNumber != 0 && getRouletteNumberColor(winningNumber) == Color.Black
                 RouletteColor.VERDE -> winningNumber == 0
             }
-            if (!colorWin) 0 else if (bet.color == RouletteColor.VERDE) amount * 18 else amount * 2
+            if (colorWin) (if (bet.color == RouletteColor.VERDE) amount * 18 else amount * 2) else 0
         }
         is RouletteBet.ByNumber -> if (bet.number == winningNumber) amount * 36 else 0
     }

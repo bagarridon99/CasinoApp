@@ -2,61 +2,53 @@
 
 package com.example.casinoapp.view
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
+import android.content.Context
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.casinoapp.R
 import com.example.casinoapp.model.CasinoUiState
 import com.example.casinoapp.viewmodel.CasinoViewModel
 import com.example.casinoapp.model.UserProfile
-import com.example.casinoapp.ui.CityBonusCard // <-- NUEVO
+import com.example.casinoapp.ui.CityBonusCard
+import com.example.casinoapp.ui.common.formatCLP
 import kotlinx.coroutines.delay
-import java.text.NumberFormat
-import java.util.Locale
-import com.example.casinoapp.notification.NotifyHelper
-// IMPORTS CORREGIDOS (MOVIDOS A UIKit.kt)
-import com.example.casinoapp.ui.common.GlassCard
-import com.example.casinoapp.ui.common.CasinoBackground
-import com.example.casinoapp.ui.common.Twinkles
 
+// --- COLORES LOBBY ---
+private val LobbyGoldStart = Color(0xFFFFD700)
+private val LobbyGoldEnd = Color(0xFFC5A000)
+private val LobbyCardGradient = Brush.linearGradient(listOf(Color(0xFF222222), Color(0xFF111111)))
 
-/* ---------------------------------- NAV ---------------------------------- */
-
-private enum class HomeTab(val label: String,  val icon: ImageVector) {
-    Dashboard("Inicio", Icons.Filled.Home),
-    Roulette("Ruleta", Icons.Filled.Casino),
-    Blackjack("Blackjack", Icons.Filled.Circle),
-    Slots("Slots", Icons.Filled.Star)
-}
-
-/* --------------------------------- SCREEN -------------------------------- */
+enum class HomeTab { Dashboard, Roulette, Blackjack, Slots }
 
 @Composable
 fun HomeScreen(
@@ -65,771 +57,335 @@ fun HomeScreen(
     onLogout: () -> Unit = {}
 ) {
     val uiState by remember { derivedStateOf { viewModel.uiState } }
-    val selectedTab = rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
+    var selectedTab by rememberSaveable { mutableStateOf(HomeTab.Dashboard) }
 
-    var showLimitsDialog by remember { mutableStateOf(false) }
-    var showHowToPlayDialog by remember { mutableStateOf(false) }
+    // Estados de los diálogos
+    var showDepositDialog by remember { mutableStateOf(false) }
+    var showBonusesDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
-    var showProfileDialog by remember { mutableStateOf(false) }
-    var showNotificationsDialog by remember { mutableStateOf(false) }
-    var showRewardsDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("CasinoApp") },
-                actions = {
-                    IconButton(onClick = { showHistoryDialog = true }) {
-                        Icon(Icons.Filled.History, contentDescription = "Historial")
-                    }
-                    IconButton(onClick = onLogout) {
-                        Icon(Icons.Filled.Logout, contentDescription = "Cerrar sesión")
-                    }
-                }
-            )
-        },
-        snackbarHost = { AppSnackbar(snackbarHostState) },
-        bottomBar = {
-            NavigationBar {
-                HomeTab.values().forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedTab.value == tab,
-                        onClick = { selectedTab.value = tab },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    )
-                }
+    // --- AQUÍ ESTÁ LA MAGIA DE LA TRANSICIÓN ---
+    AnimatedContent(
+        targetState = selectedTab,
+        label = "GameTransition",
+        transitionSpec = {
+            if (targetState == HomeTab.Dashboard) {
+                // Si volvemos al Dashboard -> Deslizar hacia la derecha (efecto Back)
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(500)) togetherWith
+                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(500))
+            } else {
+                // Si vamos a un juego -> Deslizar hacia la izquierda (efecto Next)
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(500)) togetherWith
+                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(500))
             }
         }
-    ) { paddingValues ->
-        Box(Modifier.fillMaxSize()) {
-            // FONDO CORREGIDO
-            CasinoBackground()
+    ) { targetTab ->
+        when (targetTab) {
+            HomeTab.Dashboard -> DashboardLobby(
+                uiState = uiState,
+                onNavigate = { selectedTab = it },
+                onOpenDeposit = { showDepositDialog = true },
+                onOpenBonuses = { showBonusesDialog = true },
+                onOpenHistory = { showHistoryDialog = true },
+                onLogout = onLogout
+            )
+            HomeTab.Roulette -> RouletteScreen(
+                uiState = uiState,
+                onPlay = { amt, bet -> viewModel.playRoulette(amt, bet) },
+                modifier = Modifier.fillMaxSize()
+            )
+            HomeTab.Blackjack -> BlackjackScreen(
+                uiState = uiState.blackjackState,
+                balance = uiState.balance,
+                onStartGame = { viewModel.startBlackjack(it) },
+                onHit = { viewModel.blackjackHit() },
+                onStand = { viewModel.blackjackStand() },
+                modifier = Modifier.fillMaxSize()
+            )
+            HomeTab.Slots -> SlotsScreen(
+                uiState = uiState,
+                onPlay = { viewModel.playSlots(it) },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
 
-            val contentModifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+    // --- DIÁLOGOS ---
+    if (showDepositDialog) {
+        DepositSheet(
+            currentBalance = uiState.balance,
+            onDismiss = { showDepositDialog = false },
+            onDeposit = { viewModel.deposit(it); showDepositDialog = false },
+            onWithdraw = { viewModel.withdraw(it); showDepositDialog = false }
+        )
+    }
 
-            when (selectedTab.value) {
-                HomeTab.Dashboard -> DashboardSection(
-                    profile = uiState.profile,
-                    uiState = uiState,
-                    onDeposit = { viewModel.deposit(it) },
-                    onWithdraw = { viewModel.withdraw(it) },
-                    onQuickDeposit = { viewModel.deposit(100) },
-                    onNavigateTo = { tab -> selectedTab.value = tab },
-                    onShowLimits = { showLimitsDialog = true },
-                    onShowLearnMore = { showHowToPlayDialog = true },
-                    onShowProfile = { showProfileDialog = true },
-                    onShowNotifications = { showNotificationsDialog = true },
-                    onShowRewards = { showRewardsDialog = true },
-                    modifier = contentModifier
-                )
-                HomeTab.Roulette -> RouletteScreen(
-                    uiState = uiState,
-                    onPlay = { betAmount, bet -> viewModel.playRoulette(betAmount, bet) },
-                    modifier = contentModifier
-                )
-                HomeTab.Blackjack -> BlackjackScreen(
-                    uiState = uiState.blackjackState,
-                    balance = uiState.balance,
-                    onStartGame = { viewModel.startBlackjack(it) },
-                    onHit = { viewModel.blackjackHit() },
-                    onStand = { viewModel.blackjackStand() },
-                    modifier = contentModifier
-                )
-                HomeTab.Slots -> SlotsScreen(
-                    uiState = uiState,
-                    onPlay = { viewModel.playSlots(it) },
-                    modifier = contentModifier
-                )
-            }
+    if (showBonusesDialog) {
+        BonusesSheet(
+            profile = uiState.profile,
+            onDismiss = { showBonusesDialog = false },
+            onClaimDaily = {
+                viewModel.claimDailyBonus()
+                showBonusesDialog = false
+            },
+            onDepositBonus = { viewModel.deposit(it) }
+        )
+    }
 
-            if (showLimitsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showLimitsDialog = false },
-                    title = { Text("Juego Responsable") },
-                    text = { Text("Establece límites de tiempo y dinero. Jugar es entretenimiento...") },
-                    confirmButton = { TextButton(onClick = { showLimitsDialog = false }) { Text("Entendido") } }
-                )
-            }
-            if (showHowToPlayDialog) {
-                AlertDialog(
-                    onDismissRequest = { showHowToPlayDialog = false },
-                    title = { Text("Cómo Jugar") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("BlackJack: Intenta sumar 21 sin pasarte.")
-                            Text("Máquina Tragamonedas: Gira los rodillos y alinea los símbolos.")
-                            Text("Apuestas a Colores: Elige un color y espera el resultado.")
-                        }
-                    },
-                    confirmButton = { TextButton(onClick = { showHowToPlayDialog = false }) { Text("Cerrar") } }
-                )
-            }
-            if (showHistoryDialog) {
-                AlertDialog(
-                    onDismissRequest = { showHistoryDialog = false },
-                    title = { Text("Historial") },
-                    text = { Text("Aquí se mostraría el historial global de transacciones y juegos.") },
-                    confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Cerrar") } }
-                )
-            }
-            if (showProfileDialog) {
-                AlertDialog(
-                    onDismissRequest = { showProfileDialog = false },
-                    title = { Text("Perfil de Usuario") },
-                    text = { Text("Aquí se mostraría la pantalla de perfil. Saldo actual: ${formatCLP(uiState.balance)}") },
-                    confirmButton = { TextButton(onClick = { showProfileDialog = false }) { Text("Cerrar") } }
-                )
-            }
-            if (showNotificationsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showNotificationsDialog = false },
-                    title = { Text("Notificaciones") },
-                    text = { Text("Aquí se mostraría la lista de notificaciones") },
-                    confirmButton = { TextButton(onClick = { showNotificationsDialog = false }) { Text("Cerrar") } }
-                )
-            }
-            if (showRewardsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showRewardsDialog = false },
-                    title = { Text("Recompensas") },
-                    text = { Text("Aquí se mostraría la pantalla de Recompensas y sus niveles. Nivel actual:") },
-                    confirmButton = { TextButton(onClick = { showRewardsDialog = false }) { Text("Cerrar") } }
-                )
+    if (showHistoryDialog) {
+        HistorySheet(
+            history = uiState.history,
+            onDismiss = { showHistoryDialog = false }
+        )
+    }
+
+    // Botón flotante para volver al Lobby (solo si estamos en un juego)
+    if (selectedTab != HomeTab.Dashboard) {
+        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopStart) {
+            SmallFloatingActionButton(
+                onClick = { selectedTab = HomeTab.Dashboard },
+                containerColor = Color.Black.copy(0.7f),
+                contentColor = LobbyGoldStart
+            ) {
+                Icon(Icons.Default.ArrowBack, "Volver")
             }
         }
     }
 }
 
-/* ------------------------------ DASHBOARD ------------------------------- */
-
 @Composable
-private fun DashboardSection(
+fun DashboardLobby(
     uiState: CasinoUiState,
-    profile: UserProfile,
-    onDeposit: (Int) -> Unit,
-    onWithdraw: (Int) -> Unit,
-    onQuickDeposit: () -> Unit,
-    onNavigateTo: (HomeTab) -> Unit,
-    onShowLimits: () -> Unit,
-    onShowLearnMore: () -> Unit,
-    onShowProfile: () -> Unit,
-    onShowNotifications: () -> Unit,
-    onShowRewards: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigate: (HomeTab) -> Unit,
+    onOpenDeposit: () -> Unit,
+    onOpenBonuses: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onLogout: () -> Unit
 ) {
-    var amount by rememberSaveable { mutableStateOf("100") }
-    val amountInt = amount.toIntOrNull() ?: 0
-    val canTransact = amountInt > 0
-
-    val context = LocalContext.current
-    var lastClaimTs by rememberSaveable { mutableStateOf(DailyBonusStore.getLastClaimTs(context)) }
-
-    var now by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        // 1) crea los canales (obligatorio antes de enviar)
-        NotifyHelper.ensureChannels(context)
-
-        // 2) actualiza el reloj (si lo usas para el bono diario)
-        now = System.currentTimeMillis()
-
-        // 3) PRUEBA: envía 1 vez al entrar a Home
-        NotifyHelper.sendBonoDiarioNow(context)
-        NotifyHelper.sendCityBonusNow(context, "Maipú")
-        NotifyHelper.sendRachaNow(context, 3)
-    }
-
-    val remainingMillis by remember(lastClaimTs, now) {
-        mutableStateOf((BONUS_INTERVAL_MS - (now - lastClaimTs)).coerceAtLeast(0))
-    }
-
-    val claimBonus: () -> Unit = {
-        onQuickDeposit()
-        val ts = System.currentTimeMillis()
-        DailyBonusStore.setLastClaimTs(context, ts)
-        lastClaimTs = ts
-    }
-
-    // --------- NUEVO: estado para ciudad ---------
-    var city by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier,
-        contentPadding = PaddingValues(bottom = 16.dp)
-    ) {
-        item { HomeHeader() }
-
-        item {
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                ProfileBar(
-                    profile = profile,
-                    unread = 2,
-                    onProfileClick = onShowProfile,
-                    onNotificationsClick = onShowNotifications,
-                    city = city // <-- NUEVO
+    Scaffold(
+        containerColor = Color(0xFF121212),
+        topBar = {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_casino),
+                    contentDescription = "Logo CasinoApp",
+                    modifier = Modifier.height(56.dp).widthIn(max = 180.dp),
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.CenterStart
                 )
-            }
-        }
-
-        item {
-            GlassCard {
-                BalanceCardContent(
-                    balance = uiState.balance,
-                    amount = amount,
-                    onAmountChange = { input -> amount = input.filter(Char::isDigit) },
-                    canTransact = canTransact,
-                    onDeposit = { onDeposit(amountInt) },
-                    onWithdraw = { onWithdraw(amountInt) }
-                )
-            }
-        }
-
-        item {
-            GlassCard {
-                QuickStatsRow(history = uiState.history)
-            }
-        }
-
-        item {
-            PromoBannerCard(
-                title = "Bono del día",
-                subtitle = "Recibe +20% en tu próximo depósito",
-                cta = "Depositar",
-                onCta = { onDeposit(maxOf(amountInt, 100)) }
-            )
-        }
-
-        // --------- NUEVO: Tarjeta de Bono por ciudad ---------
-        item {
-            GlassCard {
-                CityBonusCard(
-                    currentAmount = amountInt,
-                    onApplyBonus = { bonus -> onDeposit(bonus) },
-                    onCityResolved = { resolved -> city = resolved }
-                )
-            }
-        }
-
-        item {
-            GlassCard {
-                RewardsCardContent(
-                    profile = profile,
-                    onShowRewards = onShowRewards
-                )
-            }
-        }
-
-        item {
-            GlassCard {
-                DailyBonusCardContent(
-                    remainingMillis = remainingMillis,
-                    onClaim = claimBonus
-                )
-            }
-        }
-
-        item {
-            GlassCard {
-                ResponsiblePlayCard(
-                    onSetLimits = onShowLimits,
-                    onLearnMore = onShowLearnMore
-                )
-            }
-        }
-
-        item {
-            GlassCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Juegos Populares", style = MaterialTheme.typography.titleLarge)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        GameCard(
-                            "Ruleta", HomeTab.Roulette.icon,
-                            onClick = { onNavigateTo(HomeTab.Roulette) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        GameCard(
-                            "Blackjack", HomeTab.Blackjack.icon,
-                            onClick = { onNavigateTo(HomeTab.Blackjack) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        GameCard(
-                            "Slots", HomeTab.Slots.icon,
-                            onClick = { onNavigateTo(HomeTab.Slots) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                IconButton(onClick = onLogout) {
+                    Icon(Icons.Default.Logout, null, tint = Color.Gray)
                 }
             }
         }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.padding(padding).fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            item { WalletCard(uiState.profile, uiState.balance, onOpenDeposit) }
+            item {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    QuickAction(Icons.Default.Add, "Depositar", onOpenDeposit)
+                    QuickAction(Icons.Default.Star, "Bonos", onOpenBonuses)
+                    QuickAction(Icons.Outlined.History, "Historial", onOpenHistory)
+                    QuickAction(Icons.Outlined.Info, "Ayuda") { }
+                }
+            }
+            item {
+                Text(
+                    "SALA DE JUEGOS", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
+                )
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    GameBanner("RULETA EUROPEA", "Clásica y Elegante", R.drawable.roulette_background) { onNavigate(HomeTab.Roulette) }
+                    GameBanner("BLACKJACK VIP", "Vence al crupier", R.drawable.blackjack_background) { onNavigate(HomeTab.Blackjack) }
+                    GameBanner("SUPER SLOTS", "Jackpots millonarios", R.drawable.slots_background) { onNavigate(HomeTab.Slots) }
+                }
+            }
+        }
+    }
+}
 
-        item {
-            GlassCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Historial reciente", style = MaterialTheme.typography.titleLarge)
-                    if (uiState.history.isEmpty()) {
-                        EmptyHistory()
-                    } else {
-                        uiState.history.asReversed().forEach { entry ->
-                            HistoryRow(entry)
-                            Divider()
+// --- COMPONENTES (Sin cambios importantes, solo integrados) ---
+
+@Composable
+fun HistorySheet(history: List<String>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF222222),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.History, null, tint = LobbyGoldStart)
+                Spacer(Modifier.width(12.dp))
+                Text("Historial de Movimientos", color = Color.White, fontSize = 18.sp)
+            }
+        },
+        text = {
+            if (history.isEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.ReceiptLong, null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("No hay movimientos recientes", color = Color.Gray)
+                }
+            } else {
+                Box(Modifier.heightIn(max = 300.dp)) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(history.size) { idx ->
+                            HistoryItemRow(history[idx])
+                            Divider(color = Color.White.copy(0.1f), thickness = 0.5.dp)
                         }
                     }
                 }
             }
-        }
-    }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar", color = Color.White) } }
+    )
 }
 
-/* ------------------ BACKGROUND + HEADER (coherente login) ------------------ */
-
-// LA FUNCIÓN 'CasinoBackgroundHome' FUE ELIMINADA DE AQUÍ
-
 @Composable
-private fun HomeHeader() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(160.dp)) {
-            Twinkles(modifier = Modifier.size(220.dp), count = 8)
-            Image(
-                painter = painterResource(id = R.drawable.logo_casino),
-                contentDescription = "Logo CasinoApp",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(180.dp)
-            )
-        }
-    }
-}
+fun HistoryItemRow(text: String) {
+    val isPositive = text.contains("Ganó", ignoreCase = true) || text.contains("Depósito", ignoreCase = true) || text.contains("Bono", ignoreCase = true) || text.contains("+")
+    val icon = if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
+    val color = if (isPositive) Color(0xFF4CAF50) else Color(0xFFEF5350)
 
-
-/* ----------------------------- CONTENT BLOCKS ---------------------------- */
-
-@Composable
-private fun ProfileBar(
-    profile: UserProfile,
-    unread: Int,
-    onProfileClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
-    city: String? = null // <-- NUEVO
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ElevatedCard(onClick = onProfileClick, shape = MaterialTheme.shapes.large) {
-            Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Person, contentDescription = "Perfil", modifier = Modifier.size(28.dp))
-            }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Surface(color = color.copy(alpha = 0.1f), shape = CircleShape, modifier = Modifier.size(32.dp)) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(16.dp)) }
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Hola, ${profile.nombre}", style = MaterialTheme.typography.titleMedium)
-            Text(
-                city?.let { "Estás en: $it" } ?: "¡Que la suerte te acompañe!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        BadgedBox(
-            badge = { if (unread > 0) Badge { Text(unread.coerceAtMost(99).toString()) } },
-            modifier = Modifier.padding(end = 2.dp)
-        ) {
-            IconButton(onClick = onNotificationsClick) {
-                Icon(Icons.Filled.Notifications, contentDescription = "Notificaciones")
-            }
-        }
+        Text(text = text, color = Color.LightGray, fontSize = 13.sp, lineHeight = 16.sp, modifier = Modifier.weight(1f))
     }
 }
 
-/* ===== Estadísticas rápidas ===== */
-
 @Composable
-private fun QuickStatsRow(history: List<String>) {
-    val stats = remember(history) { computeStats(history) }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+fun WalletCard(profile: UserProfile, balance: Int, onDeposit: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(180.dp).shadow(12.dp, RoundedCornerShape(24.dp)).background(LobbyCardGradient, RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(24.dp))
     ) {
-        StatCard(
-            title = "Victorias",
-            value = stats.wins.toString(),
-            icon = Icons.Filled.ThumbUp,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            title = "Derrotas",
-            value = stats.losses.toString(),
-            icon = Icons.Filled.ThumbDown,
-            modifier = Modifier.weight(1f)
-        )
-        StatCard(
-            title = "Racha",
-            value = (if (stats.streak > 0) "+${stats.streak}" else "${stats.streak}"),
-            icon = Icons.Filled.TrendingUp,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-private data class Stats(val wins: Int, val losses: Int, val streak: Int)
-
-private fun computeStats(history: List<String>): Stats {
-    var wins = 0
-    var losses = 0
-    var currentStreak = 0
-    history.asReversed().forEach { row ->
-        when {
-            row.contains("Ganó", ignoreCase = true) -> {
-                wins++
-                currentStreak = if (currentStreak >= 0) currentStreak + 1 else 1
-            }
-            row.contains("Perdió", ignoreCase = true) -> {
-                losses++
-                currentStreak = if (currentStreak <= 0) currentStreak - 1 else -1
-            }
-            row.contains("Empate", ignoreCase = true) -> {
-                currentStreak = 0
-            }
-        }
-    }
-    return Stats(wins, losses, currentStreak)
-}
-
-@Composable
-private fun StatCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    ElevatedCard(
-        modifier = modifier.height(84.dp),
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(icon, contentDescription = title)
-            Column {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-/* ===== Banner de promoción ===== */
-
-@Composable
-private fun PromoBannerCard(
-    title: String,
-    subtitle: String,
-    cta: String,
-    onCta: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        tonalElevation = 6.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.80f)
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(Icons.Filled.CardGiftcard, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-            Button(onClick = onCta, shape = MaterialTheme.shapes.large) { Text(cta) }
-        }
-    }
-}
-
-/* ===== Juego responsable ===== */
-
-@Composable
-private fun ResponsiblePlayCard(
-    onSetLimits: () -> Unit,
-    onLearnMore: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Juego responsable", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Establece límites y toma descansos. Jugar es entretenimiento, no una forma de ingresos.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AssistChip(onClick = onSetLimits, label = { Text("Establecer límites") }, leadingIcon = { Icon(Icons.Filled.Timer, null) })
-            AssistChip(onClick = onLearnMore, label = { Text("Aprender más") }, leadingIcon = { Icon(Icons.Filled.Info, null) })
-        }
-    }
-}
-
-/* ----------------------------- BONO DIARIO ----------------------------- */
-
-@Composable
-private fun RewardsCardContent(profile: UserProfile, onShowRewards: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Recompensas", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        AssistChip(onClick = onShowRewards, label = { Text("Ver") })
-    }
-    Spacer(Modifier.height(10.dp))
-    Text("Nivel ${profile.nivel} • ${profile.xpActual}%")
-    LinearProgressIndicator(
-        progress = profile.xpActual / 100f,
-        modifier = Modifier.fillMaxWidth(),
-        trackColor = MaterialTheme.colorScheme.surfaceVariant
-    )
-    Text(
-        "Juega para subir de nivel y desbloquear bonos.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-@Composable
-private fun DailyBonusCardContent(
-    remainingMillis: Long,
-    onClaim: () -> Unit
-) {
-    val available = remainingMillis <= 0L
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Bono diario", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    if (available) "Reclama $${BONUS_AMOUNT} gratis hoy."
-                    else "Disponible en ${formatHMS(remainingMillis)}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(onClick = onClaim, enabled = available, shape = MaterialTheme.shapes.large) {
-                Text(if (available) "Reclamar" else "Esperando…")
-            }
-        }
-        if (!available) {
-            Spacer(Modifier.height(8.dp))
-            DailyBonusProgress(remainingMs = remainingMillis, totalMs = BONUS_INTERVAL_MS)
-        }
-    }
-}
-
-@Composable
-private fun DailyBonusProgress(remainingMs: Long, totalMs: Long) {
-    val fraction = 1f - (remainingMs.toFloat() / totalMs.coerceAtLeast(1))
-    LinearProgressIndicator(
-        progress = fraction.coerceIn(0f, 1f),
-        modifier = Modifier.fillMaxWidth(),
-        trackColor = MaterialTheme.colorScheme.surfaceVariant
-    )
-}
-
-/* ------------------------------ BALANCE ------------------------------ */
-
-@Composable
-private fun BalanceCardContent(
-    balance: Int,
-    amount: String,
-    onAmountChange: (String) -> Unit,
-    canTransact: Boolean,
-    onDeposit: () -> Unit,
-    onWithdraw: () -> Unit
-) {
-    Text("Saldo disponible", style = MaterialTheme.typography.titleLarge)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        AnimatedCurrency(balance)
-        Spacer(Modifier.width(8.dp))
-        Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null)
-    }
-    OutlinedTextField(
-        value = amount,
-        onValueChange = onAmountChange,
-        label = { Text("Monto") },
-        singleLine = true,
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(Modifier.height(6.dp))
-    QuickAmountChips(
-        current = amount,
-        balance = balance,
-        onPick = { picked -> onAmountChange(picked.toString()) }
-    )
-    Spacer(Modifier.height(6.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onDeposit, enabled = canTransact, modifier = Modifier.weight(1f)) {
-            Text("Depositar")
-        }
-        FilledTonalButton(onClick = onWithdraw, enabled = canTransact, modifier = Modifier.weight(1f)) {
-            Text("Retirar")
-        }
-    }
-}
-
-@Composable
-private fun QuickAmountChips(
-    current: String,
-    balance: Int,
-    onPick: (Int) -> Unit
-) {
-    val presets = listOf(50, 100, 200, 500)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        presets.forEach { v ->
-            AssistChip(onClick = { onPick(v) }, label = { Text("\$${v}") })
-        }
-        AssistChip(onClick = { onPick(balance) }, label = { Text("MAX") })
-    }
-}
-
-/* ------------------------------ GAME CARD ------------------------------ */
-
-@Composable
-private fun GameCard(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "gcScale"
-    )
-
-    Card(
-        onClick = onClick,
-        modifier = modifier
-            .aspectRatio(1f)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        try { tryAwaitRelease() } finally { pressed = false }
+        Canvas(modifier = Modifier.fillMaxSize()) { drawCircle(Color(0xFFFFD700).copy(0.05f), radius = 300f, center = center.copy(x = size.width)) }
+        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Text("SALDO DISPONIBLE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(formatCLP(balance), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                }
+                Surface(color = Color(0xFF333333), shape = RoundedCornerShape(50)) {
+                    Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.EmojiEvents, null, tint = LobbyGoldStart, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("LVL ${profile.nivel}", color = LobbyGoldStart, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                )
+                }
             }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(36.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(profile.nombre.uppercase(), color = Color.White.copy(0.7f), fontSize = 14.sp, letterSpacing = 1.sp)
+                Button(onClick = onDeposit, colors = ButtonDefaults.buttonColors(containerColor = LobbyGoldStart), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp), modifier = Modifier.height(36.dp)) {
+                    Text("AGREGAR", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
         }
     }
 }
 
-/* ----------------------------- HISTORIAL ----------------------------- */
-
 @Composable
-private fun EmptyHistory() {
-    Column(
-        Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(Icons.Filled.History, null, modifier = Modifier.size(42.dp))
+fun QuickAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }) {
+        Box(modifier = Modifier.size(56.dp).background(Color(0xFF222222), CircleShape).border(1.dp, Color.White.copy(0.1f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White)
+        }
         Spacer(Modifier.height(8.dp))
-        Text("Aún no hay movimientos", fontWeight = FontWeight.SemiBold)
-        Text("Juega o deposita para ver tu historial.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, color = Color.Gray, fontSize = 12.sp)
     }
 }
 
 @Composable
-private fun HistoryRow(raw: String) {
-    val title = raw.substringBefore(":").ifBlank { raw }
-    val amountPart = raw.substringAfter(": ", "").substringBefore(" (")
-    val datePart = raw.substringAfter("(", "").substringBeforeLast(")")
-    val isPositive = title.startsWith("Depósito") || title.contains("Ganó", ignoreCase = true)
-    val amountColor = if (isPositive) Color(0xFF2E7D32) else Color(0xFFC62828)
+fun GameBanner(title: String, subtitle: String, imageRes: Int, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().height(140.dp).clickable { onClick() }, shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(8.dp)) {
+        Box {
+            Image(painter = painterResource(imageRes), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(0.9f), Color.Transparent))))
+            Column(Modifier.align(Alignment.CenterStart).padding(20.dp), verticalArrangement = Arrangement.Center) {
+                Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                Text(subtitle, color = LobbyGoldStart, fontSize = 14.sp)
+                Spacer(Modifier.height(12.dp))
+                Surface(color = Color.White.copy(0.2f), shape = RoundedCornerShape(4.dp)) {
+                    Text("JUGAR AHORA", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+            }
+        }
+    }
+}
 
-    ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
-        trailingContent = { if (amountPart.isNotEmpty()) Text(amountPart, color = amountColor, fontWeight = FontWeight.Bold) },
-        supportingContent = { if (datePart.isNotEmpty()) Text(datePart) }
+@Composable
+fun DepositSheet(currentBalance: Int, onDismiss: () -> Unit, onDeposit: (Int) -> Unit, onWithdraw: (Int) -> Unit) {
+    var amount by remember { mutableStateOf("1000") }
+    AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Color(0xFF222222),
+        title = { Text("Gestionar Fondos", color = Color.White) },
+        text = {
+            Column {
+                Text("Saldo actual: ${formatCLP(currentBalance)}", color = Color.Gray)
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(value = amount, onValueChange = { amount = it.filter(Char::isDigit) }, label = { Text("Monto") }, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = LobbyGoldStart, unfocusedBorderColor = Color.Gray, focusedTextColor = Color.White), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(1000, 5000, 10000).forEach { SuggestionChip(onClick = { amount = it.toString() }, label = { Text("$it") }) }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { onDeposit(amount.toIntOrNull() ?: 0) }, colors = ButtonDefaults.buttonColors(containerColor = LobbyGoldStart)) { Text("Depositar", color = Color.Black) } },
+        dismissButton = { TextButton(onClick = { onWithdraw(amount.toIntOrNull() ?: 0) }) { Text("Retirar", color = Color.Red) } }
     )
 }
 
-/* ------------------------------- SNACKBAR ------------------------------- */
-
 @Composable
-private fun AppSnackbar(host: SnackbarHostState) {
-    SnackbarHost(host) { data ->
-        val isError = data.visuals.withDismissAction
-        val bg = if (isError) MaterialTheme.colorScheme.errorContainer
-        else MaterialTheme.colorScheme.inverseSurface
-        val fg = if (isError) MaterialTheme.colorScheme.onErrorContainer
-        else MaterialTheme.colorScheme.inverseOnSurface
-
-        Snackbar(
-            containerColor = bg,
-            contentColor = fg,
-            snackbarData = data,
-            shape = RoundedCornerShape(16.dp)
-        )
+fun BonusesSheet(profile: UserProfile, onDismiss: () -> Unit, onClaimDaily: () -> Unit, onDepositBonus: (Int) -> Unit) {
+    val context = LocalContext.current
+    var remainingMs by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("casino_prefs", Context.MODE_PRIVATE)
+        while(true) {
+            val last = prefs.getLong("last_bonus_ts", 0L)
+            val now = System.currentTimeMillis()
+            val diff = now - last
+            val waitTime = 86400000L
+            if (diff < waitTime) remainingMs = waitTime - diff else remainingMs = 0L
+            delay(1000L)
+        }
     }
-}
-
-/* ----------------------------- ANIM UTILITIES ----------------------------- */
-
-@Composable
-private fun AnimatedCurrency(amount: Int) {
-    var target by remember { mutableIntStateOf(amount) }
-    LaunchedEffect(amount) { target = amount }
-    val animated by animateIntAsState(targetValue = target, label = "cash")
-    Text(formatCLP(animated), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-}
-
-/* ---------------------------------- UTILS --------------------------------- */
-
-private fun formatCLP(value: Int): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "CL")).format(value)
-
-private const val BONUS_INTERVAL_MS = 24L * 60 * 60 * 1000
-private const val BONUS_AMOUNT = 100
-private const val PREFS_NAME = "casino_prefs"
-private const val KEY_LAST_BONUS_TS = "last_bonus_ts"
-
-private object DailyBonusStore {
-    fun getLastClaimTs(context: android.content.Context): Long {
-        val sp = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        return sp.getLong(KEY_LAST_BONUS_TS, 0L)
-    }
-    fun setLastClaimTs(context: android.content.Context, ts: Long) {
-        val sp = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        sp.edit().putLong(KEY_LAST_BONUS_TS, ts).apply()
-    }
-}
-
-private fun formatHMS(ms: Long): String {
-    val totalSec = ms / 1000
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return "%02d:%02d:%02d".format(h, m, s)
+    val isAvailable = remainingMs <= 0L
+    AlertDialog(
+        onDismissRequest = onDismiss, containerColor = Color(0xFF222222),
+        title = { Text("Centro de Recompensas", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF333333))) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarToday, null, tint = LobbyGoldStart)
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Bono Diario", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (isAvailable) Text("¡Disponible ahora!", color = LobbyGoldStart, fontSize = 12.sp)
+                            else {
+                                val h = remainingMs / 3600000L
+                                val m = (remainingMs % 3600000L) / 60000L
+                                Text("Espera ${h}h ${m}m", color = Color.Gray, fontSize = 12.sp)
+                            }
+                        }
+                        Button(onClick = onClaimDaily, enabled = isAvailable, colors = ButtonDefaults.buttonColors(containerColor = LobbyGoldStart, disabledContainerColor = Color.DarkGray)) {
+                            Text("Reclamar", color = if(isAvailable) Color.Black else Color.Gray)
+                        }
+                    }
+                }
+                CityBonusCard(currentAmount = 0, onApplyBonus = { onDepositBonus(it) }, onCityResolved = { }, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cerrar", color = Color.White) } }
+    )
 }

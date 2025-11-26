@@ -1,23 +1,19 @@
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class
+)
+
 package com.example.casinoapp.view
 
-// LOS IMPORTS FALTANTES (DEBES AGREGAR LOS ARCHIVOS)
-import com.example.casinoapp.ui.common.BouncyButton
-import com.example.casinoapp.ui.common.ImageLogo
-import com.example.casinoapp.ui.common.RouletteProgress
-// IMPORTS CORREGIDOS (MOVIDOS A UIKit.kt)
-import com.example.casinoapp.ui.common.Twinkles
-import com.example.casinoapp.ui.common.CasinoBackground
-
 import android.app.Application
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,94 +21,72 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.casinoapp.R
+import com.example.casinoapp.ui.common.BouncyButton
+import com.example.casinoapp.ui.common.CasinoBackground
+import com.example.casinoapp.ui.common.ImageLogo
+import com.example.casinoapp.ui.common.RouletteProgress
+import com.example.casinoapp.ui.common.Twinkles
 import com.example.casinoapp.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
-import androidx.compose.ui.ExperimentalComposeUiApi
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 
-/**
- * Pantalla de Login:
- * - Fondo animado tipo "Ken Burns" coherente con Home.
- * - Tarjeta con campos de email/contraseña y validación mínima.
- * - Botón con animación “bouncy” y loader tipo ruleta durante carga.
- * - Maneja snackbar + diálogo para feedback de errores.
- */
-@OptIn(ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class)
+private val Gold = Color(0xFFFFD700)
+private val DarkGlass = Color(0xFF121212).copy(alpha = 0.90f)
+
 @Composable
 fun LoginScreen(
     snackbarHostState: SnackbarHostState,
-    onLogin: (String, String) -> Unit,    // callback al loguear con éxito
-    onNavigateToSignUp: () -> Unit        // navegación a registro
+    onLogin: (String, String) -> Unit,
+    onNavigateToSignUp: () -> Unit
 ) {
-    // ViewModel de Auth con factory manual (requiere Application)
     val app = LocalContext.current.applicationContext as Application
     val vm: AuthViewModel = viewModel(factory = object : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            @Suppress("UNCHECKED_CAST")
-            return AuthViewModel(app) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = AuthViewModel(app) as T
     })
-    val state by vm.state.collectAsState() // estado expuesto por el VM
+    val state by vm.state.collectAsState()
 
-    // Campos controlados + visibilidad de contraseña
     var user by rememberSaveable { mutableStateOf("") }
     var pass by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // IME/Focus para UX fluida
     val focus = LocalFocusManager.current
     val kb = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
 
-    // Validaciones mínimas (email regex del framework y largo de pass)
-    val emailValid by remember(user) {
-        mutableStateOf(android.util.Patterns.EMAIL_ADDRESS.matcher(user).matches())
-    }
-    val passValid by remember(pass) { mutableStateOf(pass.length >= 6) }
+    val emailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(user).matches()
+    val passValid = pass.length >= 6
 
-    // Aparición escalonada de la tarjeta y sus campos
     var showCard by remember { mutableStateOf(false) }
     var showFields by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         showCard = true
         delay(120)
         showFields = true
     }
 
-    // Efecto “shake” cuando llega un mensaje de error
     val shake = remember { Animatable(0f) }
     LaunchedEffect(state.msg) {
         state.msg?.let { snackbarHostState.showSnackbar(it) }
         if (state.msg != null) {
-            listOf(0f, -12f, 10f, -8f, 6f, -3f, 0f).forEach {
-                shake.animateTo(it, tween(60))
-            }
+            listOf(0f, -12f, 10f, -8f, 6f, -3f, 0f).forEach { shake.animateTo(it, tween(60)) }
         }
     }
 
@@ -123,8 +97,8 @@ fun LoginScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            // Fondo con Ken Burns + overlay oscuro (AHORA ES PÚBLICO)
             CasinoBackground()
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.5f)))
 
             Column(
                 modifier = Modifier
@@ -132,151 +106,116 @@ fun LoginScreen(
                     .padding(horizontal = 24.dp, vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Logo con “twinkles” de fondo (AHORA ES PÚBLICO)
                 Box(contentAlignment = Alignment.Center) {
-                    Twinkles(Modifier.size(300.dp), count = 10)
+                    Twinkles(Modifier.size(280.dp), count = 10)
                     ImageLogo(Modifier.padding(top = 4.dp))
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(32.dp))
 
-                // Tarjeta de login (glass) con animación de entrada
-                AnimatedVisibility(
-                    visible = showCard,
-                    enter = fadeIn() + slideInVertically { it / 12 },
-                    exit = fadeOut()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(28.dp),
-                        tonalElevation = 8.dp,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                AnimatedVisibility(visible = showCard, enter = fadeIn() + slideInVertically { it / 12 }) {
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkGlass),
+                        border = BorderStroke(1.dp, Color.White.copy(0.1f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .graphicsLayer { translationX = shake.value } // aplica shake en error
+                            .graphicsLayer { translationX = shake.value }
                     ) {
                         Column(
-                            Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            Modifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Paleta visual coherente para los TextFields
-                            val tfColors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f),
-                                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                                cursorColor = MaterialTheme.colorScheme.primary,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.20f),
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                            )
+                            Text("Iniciar Sesión", style = MaterialTheme.typography.headlineSmall, color = Color.White)
 
-                            // Campo: email
-                            AnimatedVisibility(
-                                visible = showFields,
-                                enter = fadeIn(animationSpec = tween(250, delayMillis = 0)) +
-                                        slideInVertically { it / 10 }
-                            ) {
+                            AnimatedVisibility(visible = showFields) {
                                 OutlinedTextField(
                                     value = user,
                                     onValueChange = { user = it },
-                                    label = { Text("Usuario (email)") },
+                                    label = { Text("Email") },
                                     singleLine = true,
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Email,
-                                        imeAction = ImeAction.Next
-                                    ),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                                     modifier = Modifier.fillMaxWidth(),
                                     isError = user.isNotBlank() && !emailValid,
-                                    supportingText = {
-                                        if (user.isNotBlank() && !emailValid) Text("Ingresa un email válido")
-                                    },
-                                    colors = tfColors
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Gold,
+                                        unfocusedBorderColor = Color.Gray,
+                                        focusedLabelColor = Gold,
+                                        unfocusedLabelColor = Color.LightGray,
+                                        cursorColor = Gold,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedContainerColor = Color.Black.copy(0.3f),
+                                        unfocusedContainerColor = Color.Black.copy(0.3f)
+                                    )
                                 )
                             }
 
-                            // Campo: contraseña (con alternar visibilidad)
-                            AnimatedVisibility(
-                                visible = showFields,
-                                enter = fadeIn(animationSpec = tween(250, delayMillis = 80)) +
-                                        slideInVertically { it / 10 }
-                            ) {
+                            AnimatedVisibility(visible = showFields) {
                                 OutlinedTextField(
                                     value = pass,
                                     onValueChange = { pass = it },
                                     label = { Text("Contraseña") },
                                     singleLine = true,
-                                    visualTransformation = if (passwordVisible)
-                                        VisualTransformation.None else PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Password,
-                                        imeAction = ImeAction.Done
-                                    ),
-                                    keyboardActions = KeyboardActions(
-                                        onDone = {
-                                            if (emailValid && passValid && !state.loading) {
-                                                kb?.hide(); focus.clearFocus()
-                                                vm.login(user, pass)
-                                            }
-                                        }
-                                    ),
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
-                                        val desc = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
                                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                             Icon(
                                                 if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                                contentDescription = desc
+                                                contentDescription = null,
+                                                tint = Gold
                                             )
                                         }
                                     },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        if (emailValid && passValid && !state.loading) {
+                                            kb?.hide(); focus.clearFocus(); vm.login(user, pass)
+                                        }
+                                    }),
                                     modifier = Modifier.fillMaxWidth(),
-                                    isError = pass.isNotBlank() && !passValid,
-                                    supportingText = {
-                                        if (pass.isNotBlank() && !passValid) Text("Mínimo 6 caracteres")
-                                    },
-                                    colors = tfColors
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Gold,
+                                        unfocusedBorderColor = Color.Gray,
+                                        focusedLabelColor = Gold,
+                                        unfocusedLabelColor = Color.LightGray,
+                                        cursorColor = Gold,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedContainerColor = Color.Black.copy(0.3f),
+                                        unfocusedContainerColor = Color.Black.copy(0.3f)
+                                    )
                                 )
                             }
 
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(8.dp))
 
-                            // Botón principal: “Ingresar”
                             BouncyButton(
                                 enabled = emailValid && passValid && !state.loading,
-                                onClick = {
-                                    kb?.hide(); focus.clearFocus()
-                                    vm.login(user, pass)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
+                                onClick = { kb?.hide(); focus.clearFocus(); vm.login(user, pass) },
+                                modifier = Modifier.fillMaxWidth().height(52.dp)
                             ) {
                                 if (state.loading) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         RouletteProgress(modifier = Modifier.size(20.dp))
                                         Spacer(Modifier.width(8.dp))
-                                        Text("Entrando a tu cuenta…")
+                                        Text("Cargando...", color = Color.Black)
                                     }
                                 } else {
-                                    Text("Ingresar")
+                                    Text("INGRESAR", color = Color.Black, style = MaterialTheme.typography.titleMedium)
                                 }
                             }
 
-                            // Navegación a registro
                             TextButton(onClick = onNavigateToSignUp) {
-                                Text("¿No tienes cuenta? Regístrate aquí")
+                                Text("¿No tienes cuenta? ", color = Color.Gray)
+                                Text("Regístrate", color = Gold)
                             }
 
-                            // Recuperación de contraseña: mensaje de demo
-                            TextButton(onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        "Recuperación de contraseña no disponible en modo local."
-                                    )
-                                }
-                            }) {
-                                Text("¿Olvidaste tu contraseña?")
+                            TextButton(onClick = { scope.launch { snackbarHostState.showSnackbar("No disponible en demo.") } }) {
+                                Text("¿Olvidaste tu contraseña?", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -285,29 +224,15 @@ fun LoginScreen(
         }
     }
 
-    // Diálogo opcional de feedback (además del snackbar)
-    val showDialog = state.msg != null
-    if (showDialog) {
+    if (state.email != null) LaunchedEffect(Unit) { onLogin(user, pass) }
+
+    if (state.msg != null) {
         AlertDialog(
             onDismissRequest = { vm.consumeMessage() },
-            title = { Text("Atención") },
-            text = { Text(state.msg ?: "") },
-            confirmButton = {
-                TextButton(onClick = { vm.consumeMessage() }) { Text("OK") }
-            },
-            // Atajo para llevar a SignUp si el error es “Usuario no encontrado”
-            dismissButton = {
-                if (state.msg?.contains("Usuario no encontrado", true) == true) {
-                    TextButton(onClick = {
-                        vm.consumeMessage(); onNavigateToSignUp()
-                    }) { Text("Registrarme") }
-                }
-            }
+            containerColor = Color(0xFF222222),
+            title = { Text("Atención", color = Color.White) },
+            text = { Text(state.msg ?: "", color = Color.LightGray) },
+            confirmButton = { TextButton(onClick = { vm.consumeMessage() }) { Text("OK", color = Gold) } }
         )
-    }
-
-    // Cuando el VM muestra email != null, consideramos login OK y navegamos.
-    LaunchedEffect(state.email) {
-        if (state.email != null) onLogin(user, pass)
     }
 }

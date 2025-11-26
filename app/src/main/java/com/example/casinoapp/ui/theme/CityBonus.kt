@@ -3,27 +3,27 @@ package com.example.casinoapp.ui
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.casinoapp.location.LocationHelper
 import kotlinx.coroutines.launch
 
-/**
- * Tarjeta que:
- * 1) Pide permisos de ubicación (cuando no están concedidos).
- * 2) Intenta resolver la ciudad actual del usuario (geocoder).
- * 3) Si hay ciudad, permite aplicar un bono del +20% sobre un monto base.
- *
- * @param currentAmount Monto actual de referencia (se usa para calcular el bono)
- * @param onApplyBonus Callback para aplicar el bono calculado (en pesos)
- * @param onCityResolved Callback que recibe la ciudad detectada (o null si falla)
- * @param modifier Modificador opcional para el contenedor
- */
+// Colores locales para asegurar consistencia con el Home
+private val DarkBg = Color(0xFF333333)
+private val Gold = Color(0xFFFFD700)
+
 @Composable
 fun CityBonusCard(
     currentAmount: Int,
@@ -34,13 +34,14 @@ fun CityBonusCard(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Estado local: permisos, estado textual, ciudad resuelta y loading
+    // Estado local
     var hasPermission by remember { mutableStateOf(LocationHelper.hasPermission(ctx)) }
     var status by remember { mutableStateOf<String>("Ubicación no solicitada") }
     var city by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var bonusApplied by remember { mutableStateOf(false) } // Para deshabilitar tras reclamar
 
-    // Launcher para pedir múltiples permisos de ubicación (fine + coarse)
+    // Launcher de permisos
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { map ->
@@ -50,7 +51,6 @@ fun CityBonusCard(
         status = if (granted) "Permiso concedido" else "Permiso denegado"
     }
 
-    // Función local: solicita permisos al sistema
     fun request() {
         launcher.launch(arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -58,62 +58,106 @@ fun CityBonusCard(
         ))
     }
 
-    // Función suspendida: intenta obtener ubicación y resolver ciudad con geocoder
     suspend fun resolve() {
         loading = true
-        status = "Obteniendo ubicación…"
-        val loc = LocationHelper.getCurrentLocation(ctx) // usa estrategia de best-effort
+        status = "Buscando..."
+        val loc = LocationHelper.getCurrentLocation(ctx)
         if (loc != null) {
             status = "Ubicación lista"
             val c = LocationHelper.resolveCity(ctx, loc.latitude, loc.longitude)
             city = c
-            onCityResolved(c) // informa a quien consume este composable
+            onCityResolved(c)
         } else {
             status = "No se pudo obtener ubicación"
         }
         loading = false
     }
 
-    // Contenedor visual: superficie elevada y con esquinas redondeadas del theme
-    Surface(
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 6.dp,
-        modifier = modifier
+    // --- UI ESTILO DARK CASINO ---
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkBg),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Bono por ciudad", style = MaterialTheme.typography.titleLarge)
-            Text(
-                // Muestra ciudad si existe; si no, el estado (permiso/obteniendo/error)
-                when {
-                    city != null -> "Estás en: $city"
-                    else -> status
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 1. Encabezado (Icono + Título)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Gold)
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Bono por ciudad",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // Estado o Ciudad detectada
+                    Text(
+                        text = city?.let { "Estás en: $it" } ?: status,
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // 2. Zona de Acción (Botones)
+            // Usamos una columna interna o Row condicional para evitar que se aplasten
+            if (city != null && !bonusApplied) {
+                // CASO: Ciudad encontrada -> Botón de reclamar GRANDE
+                val base = currentAmount.coerceAtLeast(100)
+                val bonus = (base * 20) / 100
+
+                Button(
+                    onClick = {
+                        onApplyBonus(bonus)
+                        bonusApplied = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Reclamar +20% ($$bonus)", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            } else if (!bonusApplied) {
+                // CASO: Aún no hay ciudad -> Botón de detectar
                 if (!hasPermission) {
-                    // Botón para pedir permisos si aún no están
-                    Button(onClick = ::request, enabled = !loading) { Text("Pedir permiso") }
+                    OutlinedButton(
+                        onClick = ::request,
+                        enabled = !loading,
+                        border = BorderStroke(1.dp, Gold),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Gold),
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Dar Permiso")
+                    }
                 } else {
-                    // Botón para detectar ubicación cuando ya hay permisos
                     OutlinedButton(
                         onClick = { scope.launch { resolve() } },
-                        enabled = !loading
-                    ) { Text("Detectar ubicación") }
-                }
-
-                // Si hay ciudad resuelta, habilita aplicar bono +20%
-                if (city != null) {
-                    val base = currentAmount.coerceAtLeast(100) // mínimo de seguridad
-                    val bonus = (base * 20) / 100
-                    Button(onClick = { onApplyBonus(bonus) }) {
-                        Text("+20% ($$bonus)")
+                        enabled = !loading,
+                        border = BorderStroke(1.dp, Gold),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Gold),
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        if (loading) {
+                            CircularProgressIndicator(Modifier.size(16.dp), color = Gold, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Buscando...")
+                        } else {
+                            Text("Detectar ubicación")
+                        }
                     }
                 }
+            } else {
+                // CASO: Ya reclamado
+                Text(
+                    "¡Bono aplicado con éxito!",
+                    color = Gold,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
             }
         }
     }
