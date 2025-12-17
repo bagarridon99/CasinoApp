@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
             val snack = remember { SnackbarHostState() }
             val application = LocalContext.current.applicationContext as Application
 
+            // Proveedor de ViewModel corregido
             val casinoVm: CasinoViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -48,7 +49,6 @@ class MainActivity : ComponentActivity() {
             )
 
             Scaffold(snackbarHost = { SnackbarHost(hostState = snack) }) { _ ->
-                // Animaciones globales de navegación
                 NavHost(navController = nav, startDestination = "login") {
 
                     // PANTALLA LOGIN
@@ -61,13 +61,15 @@ class MainActivity : ComponentActivity() {
                             snackbarHostState = snack,
                             onLogin = { _, _ ->
                                 casinoVm.loadUserData()
-                                nav.navigate("home") { popUpTo("login") { inclusive = true } }
+                                nav.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
                             },
                             onNavigateToSignUp = { nav.navigate("signup") }
                         )
                     }
 
-                    // PANTALLA REGISTRO (Slide lateral)
+                    // PANTALLA REGISTRO
                     composable(
                         "signup",
                         enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(500)) },
@@ -75,12 +77,21 @@ class MainActivity : ComponentActivity() {
                     ) {
                         SignUpScreen(
                             snackbarHostState = snack,
-                            onSignUp = { _, _, _ -> },
+                            // Simplificamos la acción: SignUpScreen se encarga de su lógica
+                            // y MainActivity solo escucha cuándo navegar.
+                            onSignUp = { user, email, pass ->
+                                // Navegación inmediata a Home
+                                nav.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                                // Opcional: Cargar datos iniciales
+                                casinoVm.loadUserData()
+                            },
                             onBackToLogin = { nav.popBackStack() }
                         )
                     }
 
-                    // PANTALLA HOME (Efecto de entrada triunfal)
+                    // PANTALLA HOME
                     composable(
                         "home",
                         enterTransition = { fadeIn(tween(700)) + scaleIn(initialScale = 0.95f, animationSpec = tween(700)) },
@@ -91,7 +102,9 @@ class MainActivity : ComponentActivity() {
                             snackbarHostState = snack,
                             onLogout = {
                                 casinoVm.logout()
-                                nav.navigate("login") { popUpTo("home") { inclusive = true } }
+                                nav.navigate("login") {
+                                    popUpTo("home") { inclusive = true }
+                                }
                             }
                         )
                     }

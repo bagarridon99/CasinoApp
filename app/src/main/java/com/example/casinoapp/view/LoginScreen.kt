@@ -30,14 +30,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.casinoapp.R
 import com.example.casinoapp.ui.common.BouncyButton
 import com.example.casinoapp.ui.common.CasinoBackground
 import com.example.casinoapp.ui.common.ImageLogo
@@ -90,6 +93,21 @@ fun LoginScreen(
         }
     }
 
+    // --- CONFIGURACIÓN DE COLORES PARA TEXTO BLANCO PURO ---
+    val tfColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = Gold,
+        unfocusedBorderColor = Color.Gray,
+        focusedLabelColor = Gold,
+        unfocusedLabelColor = Color.White,
+        cursorColor = Gold,
+        // ESTO ASEGURA QUE LO QUE ESCRIBES SEA BLANCO
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        // Fondo oscuro para que el texto blanco resalte
+        focusedContainerColor = Color.Black.copy(0.85f),
+        unfocusedContainerColor = Color.Black.copy(0.75f)
+    )
+
     Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { paddingValues ->
         Box(
             modifier = Modifier
@@ -135,21 +153,12 @@ fun LoginScreen(
                                     onValueChange = { user = it },
                                     label = { Text("Email") },
                                     singleLine = true,
+                                    textStyle = TextStyle(color = Color.White, fontSize = 16.sp), // Refuerzo de color blanco
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                                     modifier = Modifier.fillMaxWidth(),
                                     isError = user.isNotBlank() && !emailValid,
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Gold,
-                                        unfocusedBorderColor = Color.Gray,
-                                        focusedLabelColor = Gold,
-                                        unfocusedLabelColor = Color.LightGray,
-                                        cursorColor = Gold,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedContainerColor = Color.Black.copy(0.3f),
-                                        unfocusedContainerColor = Color.Black.copy(0.3f)
-                                    )
+                                    colors = tfColors
                                 )
                             }
 
@@ -159,6 +168,7 @@ fun LoginScreen(
                                     onValueChange = { pass = it },
                                     label = { Text("Contraseña") },
                                     singleLine = true,
+                                    textStyle = TextStyle(color = Color.White, fontSize = 16.sp), // Refuerzo de color blanco
                                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
                                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -177,17 +187,7 @@ fun LoginScreen(
                                     }),
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Gold,
-                                        unfocusedBorderColor = Color.Gray,
-                                        focusedLabelColor = Gold,
-                                        unfocusedLabelColor = Color.LightGray,
-                                        cursorColor = Gold,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedContainerColor = Color.Black.copy(0.3f),
-                                        unfocusedContainerColor = Color.Black.copy(0.3f)
-                                    )
+                                    colors = tfColors
                                 )
                             }
 
@@ -210,12 +210,8 @@ fun LoginScreen(
                             }
 
                             TextButton(onClick = onNavigateToSignUp) {
-                                Text("¿No tienes cuenta? ", color = Color.Gray)
+                                Text("¿No tienes cuenta? ", color = Color.White.copy(0.7f))
                                 Text("Regístrate", color = Gold)
-                            }
-
-                            TextButton(onClick = { scope.launch { snackbarHostState.showSnackbar("No disponible en demo.") } }) {
-                                Text("¿Olvidaste tu contraseña?", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -225,14 +221,4 @@ fun LoginScreen(
     }
 
     if (state.email != null) LaunchedEffect(Unit) { onLogin(user, pass) }
-
-    if (state.msg != null) {
-        AlertDialog(
-            onDismissRequest = { vm.consumeMessage() },
-            containerColor = Color(0xFF222222),
-            title = { Text("Atención", color = Color.White) },
-            text = { Text(state.msg ?: "", color = Color.LightGray) },
-            confirmButton = { TextButton(onClick = { vm.consumeMessage() }) { Text("OK", color = Gold) } }
-        )
-    }
 }

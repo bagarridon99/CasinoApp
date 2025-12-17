@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +31,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,7 +46,7 @@ import com.example.casinoapp.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
 private val Gold = Color(0xFFFFD700)
-private val DarkGlass = Color(0xFF121212).copy(alpha = 0.9f)
+private val DarkGlass = Color(0xFF121212).copy(alpha = 0.95f) // Más opaco para mejor lectura
 
 @Composable
 fun SignUpScreen(
@@ -66,7 +69,10 @@ fun SignUpScreen(
     var ageConfirmed by rememberSaveable { mutableStateOf(false) }
     var acceptTerms by rememberSaveable { mutableStateOf(false) }
 
-    // Validaciones
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var termsRead by rememberSaveable { mutableStateOf(false) }
+
+    // --- VALIDACIONES MANTENIDAS ---
     val emailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     val usernameValid = username.isNotBlank()
     val passHasLen = pass.length >= 6
@@ -74,47 +80,64 @@ fun SignUpScreen(
     val passHasDigit = pass.any { it.isDigit() }
     val passStrong = passHasLen && passHasUpper && passHasDigit
     val confirmValid = confirm.isNotEmpty() && confirm == pass
-    val canCreate = emailValid && usernameValid && passStrong && confirmValid && ageConfirmed && acceptTerms && !state.loading
+    val canCreate = emailValid && usernameValid && passStrong && confirmValid && ageConfirmed && acceptTerms && termsRead && !state.loading
 
     val shake = remember { Animatable(0f) }
 
-    // --- CORRECCIÓN CRÍTICA AQUÍ ---
     LaunchedEffect(state.msg) {
         state.msg?.let { msg ->
-            // Buscamos "creada" (femenino) o "Inicia" para asegurar que sea el mensaje de éxito
-            if (msg.contains("creada", ignoreCase = true) || msg.contains("Inicia", ignoreCase = true)) {
-
-                // 1. Limpiamos el mensaje para evitar repeticiones
+            if (msg.contains("creada", ignoreCase = true) || msg.contains("éxito", ignoreCase = true)) {
                 vm.consumeMessage()
-
-                // 2. Navegamos inmediatamente
-                onBackToLogin()
-
+                onSignUp(username, email, pass)
             } else {
-                // Caso Error: Mostramos el mensaje y agitamos la tarjeta
                 launch { snackbarHostState.showSnackbar(msg) }
                 listOf(0f, -10f, 10f, 0f).forEach { shake.animateTo(it) }
             }
         }
     }
 
+    if (showTermsDialog) {
+        AlertDialog(
+            onDismissRequest = { showTermsDialog = false },
+            title = { Text("Términos y Condiciones", color = Gold, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        "1. Este es un casino ficticio.\n2. El saldo es virtual.\n3. Registro con fecha y hora.\n4. Persistencia de datos local.",
+                        color = Color.White
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { termsRead = true; showTermsDialog = false }) {
+                    Text("ACEPTO", color = Gold, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = Color(0xFF1A1A1A)
+        )
+    }
+
+    // --- CORRECCIÓN DE VISIBILIDAD DE PALABRAS ---
+    // He configurado el color del texto a Blanco puro (White) y el fondo a Negro casi sólido (copy 0.8f)
     val tfColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = Gold, unfocusedBorderColor = Color.Gray,
-        focusedLabelColor = Gold, unfocusedLabelColor = Color.LightGray,
-        cursorColor = Gold, focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-        focusedContainerColor = Color.Black.copy(0.3f), unfocusedContainerColor = Color.Black.copy(0.3f)
+        focusedBorderColor = Gold,
+        unfocusedBorderColor = Color.LightGray,
+        focusedLabelColor = Gold,
+        unfocusedLabelColor = Color.White,
+        cursorColor = Gold,
+        focusedTextColor = Color.White,    // TEXTO AL ESCRIBIR
+        unfocusedTextColor = Color.White,  // TEXTO YA ESCRITO
+        focusedContainerColor = Color.Black.copy(0.8f), // FONDO OSCURO PARA QUE RESALTE EL TEXTO
+        unfocusedContainerColor = Color.Black.copy(0.6f)
     )
 
     Scaffold(snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             CasinoBackground()
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.5f)))
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.4f)))
 
             Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
+                Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -138,22 +161,13 @@ fun SignUpScreen(
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Crear cuenta", style = MaterialTheme.typography.titleLarge, color = Color.White)
 
-                        OutlinedTextField(
-                            value = email, onValueChange = { email = it },
-                            label = { Text("Email") }, singleLine = true, colors = tfColors, modifier = Modifier.fillMaxWidth(),
-                            isError = email.isNotEmpty() && !emailValid,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
-                        )
-
-                        OutlinedTextField(
-                            value = username, onValueChange = { username = it },
-                            label = { Text("Usuario") }, singleLine = true, colors = tfColors, modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next)
-                        )
+                        // INPUTS CON VISIBILIDAD CORREGIDA
+                        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = tfColors, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Usuario") }, colors = tfColors, modifier = Modifier.fillMaxWidth())
 
                         OutlinedTextField(
                             value = pass, onValueChange = { pass = it },
-                            label = { Text("Contraseña") }, singleLine = true, colors = tfColors, modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Contraseña") }, colors = tfColors, modifier = Modifier.fillMaxWidth(),
                             visualTransformation = if (passVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = { IconButton(onClick = { passVisible = !passVisible }) { Icon(if (passVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, null, tint = Gold) } },
                             supportingText = { PasswordChecklistRow(passHasLen, passHasUpper, passHasDigit) }
@@ -163,20 +177,35 @@ fun SignUpScreen(
 
                         OutlinedTextField(
                             value = confirm, onValueChange = { confirm = it },
-                            label = { Text("Confirmar contraseña") }, singleLine = true, colors = tfColors, modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Confirmar contraseña") }, colors = tfColors, modifier = Modifier.fillMaxWidth(),
                             visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = { IconButton(onClick = { confirmVisible = !confirmVisible }) { Icon(if (confirmVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, null, tint = Gold) } },
-                            isError = confirm.isNotEmpty() && !confirmValid
+                            trailingIcon = { IconButton(onClick = { confirmVisible = !confirmVisible }) { Icon(if (confirmVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, null, tint = Gold) } }
                         )
 
+                        // CHECKBOXES CON TEXTO BLANCO
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = ageConfirmed, onCheckedChange = { ageConfirmed = it }, colors = CheckboxDefaults.colors(checkedColor = Gold, checkmarkColor = Color.Black, uncheckedColor = Color.Gray))
-                            Text("Soy mayor de 18 años", color = Color.LightGray, style = MaterialTheme.typography.bodyMedium)
+                            Checkbox(checked = ageConfirmed, onCheckedChange = { ageConfirmed = it }, colors = CheckboxDefaults.colors(checkedColor = Gold))
+                            Text("Soy mayor de 18 años", color = Color.White)
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = acceptTerms, onCheckedChange = { acceptTerms = it }, colors = CheckboxDefaults.colors(checkedColor = Gold, checkmarkColor = Color.Black, uncheckedColor = Color.Gray))
-                            Text("Acepto los términos", color = Color.LightGray, style = MaterialTheme.typography.bodyMedium)
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = acceptTerms,
+                                    onCheckedChange = { if (termsRead) acceptTerms = it },
+                                    enabled = termsRead,
+                                    colors = CheckboxDefaults.colors(checkedColor = Gold, disabledUncheckedColor = Color.DarkGray)
+                                )
+                                Text(
+                                    text = "Acepto los términos",
+                                    color = if (termsRead) Color.White else Color.Gray,
+                                    style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
+                                    modifier = Modifier.clickable { showTermsDialog = true }
+                                )
+                            }
+                            if (!termsRead) {
+                                Text(" (Haz clic en el texto para leer primero)", color = Gold.copy(0.7f), fontSize = 11.sp, modifier = Modifier.padding(start = 32.dp))
+                            }
                         }
 
                         Button(
@@ -185,11 +214,8 @@ fun SignUpScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Gold, disabledContainerColor = Color.DarkGray),
                             modifier = Modifier.fillMaxWidth().height(50.dp)
                         ) {
-                            if (state.loading) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
-                            } else {
-                                Text("REGISTRARSE", color = Color.Black, fontWeight = FontWeight.Bold)
-                            }
+                            if (state.loading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                            else Text("REGISTRARSE", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
 
                         TextButton(onClick = onBackToLogin, modifier = Modifier.align(Alignment.CenterHorizontally)) {
